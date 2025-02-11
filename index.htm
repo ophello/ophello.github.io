@@ -3,7 +3,6 @@
     <style>
       -webkit-text-size-adjust: 100%;
       body { font-size: 14px; }
-      ul li {font-size: 14px; }
       h2 { font-size: 20px; }
       @media screen and (max-width: 768px) {
         body { font-size: 24px; }
@@ -17,8 +16,12 @@
       ul li {
         display: list-item;
         padding-left: 5px;
+        font-size: 14px;
       }
-      li > a { display: inline; }
+      li > a {
+        display: inline;
+        font-size: inherit;
+      }
 
     </style>
   </head>
