@@ -1,0 +1,31 @@
+html, body {
+  margin: -30px 0 0;
+  padding: 0 0 300px;
+  height: 100%;
+}
+body {
+  font-size: 17px;
+  background-color: #000;
+  color: #888;
+}
+a {
+  color: #099;
+}
+h2 {
+  font-size: 22px;
+  margin: 0;
+  padding: 30px 0 0;
+}
+ul {
+  list-style: outside disc;
+  margin-left: -20px;
+}
+ul li {
+  display: list-item;
+  padding: 0 0 3px 5px;
+  font-size: 17px;
+}
+li > a {
+  display: inline;
+  font-size: inherit;
+}
