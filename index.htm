@@ -6,7 +6,7 @@
     </style>
   </head>
   <script>
-    document.addEventListener("click", link => (link.target.closest("a")?.href && Object.assign(link.target.closest("a"), { target: "_blank", rel: "noopener noreferrer" })));
+    document.addEventListener("click", event => (event.target.closest("a")?.href && Object.assign(event.target.closest("a"), { target: "_blank", rel: "noopener noreferrer" })));
   </script>
   <body style="margin: 30px; font-family: Verdana, Helvetica, Arial, sans-serif;">
   
