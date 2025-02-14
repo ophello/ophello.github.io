@@ -9,9 +9,9 @@ body {
   background-color: #000;
   color: #888;
 }
-a {
-  color: #099;
-}
+a { color: #099; }
+a:hover { color: #0d9; }
+a:visited {color: #09f}
 h2 {
   font-size: 22px;
   padding: 6px 0;
