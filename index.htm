@@ -81,19 +81,29 @@
 
     <br /><br />
 
-    <script>
+<script>
   let visitorData = null;
 
-  fetch('https://view-counter.ophello.workers.dev/')
-    .then(response => response.json())
-    .then(data => {
-      visitorData = data;
-      console.log('Visitor data:', visitorData);
-    })
-    .catch(() => {
-      console.log('Failed to fetch visitor data');
-    });
+  if (localStorage.getItem('skipCounting') === 'true') {
+    console.log("Visit counting skipped for this user.");
+  } else {
+    // If URL has ?ignoreMe=true, set the flag
+    if (new URLSearchParams(window.location.search).get('ignoreMe') === 'true') {
+      localStorage.setItem('skipCounting', 'true');
+    }
+
+    fetch('https://view-counter.ophello.workers.dev/')
+      .then(response => response.json())
+      .then(data => {
+        visitorData = data;
+        console.log('Visitor data:', visitorData);
+      })
+      .catch(() => {
+        console.log('Failed to fetch visitor data');
+      });
+  }
 </script>
+
 
   </body>
 </html>
