@@ -80,5 +80,20 @@
     </ul>  
 
     <br /><br />
+
+    <script>
+  let visitorData = null;
+
+  fetch('https://view-counter.ophello.workers.dev/')
+    .then(response => response.json())
+    .then(data => {
+      visitorData = data;
+      console.log('Visitor data:', visitorData);
+    })
+    .catch(() => {
+      console.log('Failed to fetch visitor data');
+    });
+</script>
+
   </body>
 </html>
