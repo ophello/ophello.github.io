@@ -30,3 +30,7 @@ li > a {
   display: inline;
   font-size: inherit;
 }
+
+hr {
+  border-top: 1px solid #877;
+}
