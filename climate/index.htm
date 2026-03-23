@@ -580,26 +580,21 @@
         return;
       }
 
-      // Populate station dropdown grouped by city
+      // Populate station dropdown
       var totalStations = 0;
       selStation.innerHTML = '<option value="">Select a station…</option>';
       matchedCities.forEach(function(city) {
-        var stations = cityGroups[city];
-        var group = document.createElement("optgroup");
-        group.label = city;
-        stations.forEach(function(s) {
+        cityGroups[city].forEach(function(s) {
           var opt = document.createElement("option");
           opt.value = JSON.stringify(s);
-          var dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
-          opt.textContent = s.name + " [" + dates + "]";
-          group.appendChild(opt);
+          opt.textContent = s.name;
+          selStation.appendChild(opt);
           totalStations++;
         });
-        selStation.appendChild(group);
       });
 
       selStation.disabled = false;
-      setStatus(totalStations + " stations across " + matchedCities.length + " cities.");
+      setStatus(totalStations + " stations loaded.");
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
       selStation.innerHTML = '<option value="">Error</option>';
