@@ -264,7 +264,7 @@
 
   <header>
     <h1>Climate Data Explorer</h1>
-    <p>July high temperatures from NOAA's Climate Data Online — 1980 to present</p>
+    <p>Monthly average temperatures from NOAA's Climate Data Online — 1980 to present</p>
   </header>
 
   <div class="controls">
@@ -297,13 +297,13 @@
 
   <div class="chart-wrap" id="chart-wrap">
     <div class="chart-legend">
-      <span><span class="legend-dot high"></span>July High Temperature (°C)</span>
+      <span><span class="legend-dot high"></span>Monthly Avg Temperature (°C)</span>
     </div>
     <canvas id="tempChart"></canvas>
   </div>
 
   <footer>
-    Version 1.0 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
+    Version 1.1 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
   </footer>
 
 </div>
@@ -315,7 +315,7 @@
   var NOAA_BASE  = "https://www.ncei.noaa.gov/cdo-web/api/v2";
   var CORS_PROXY = "https://corsproxy.io/?";
   var DATASET    = "GSOM";
-  var DATA_TYPES = "TMAX";
+  var DATA_TYPES = "TAVG,TMAX";
   var START_YEAR = 1980;
 
   // ━━━ DOM ━━━
@@ -567,16 +567,15 @@
       setStatus("Fetching monthly temperature data…");
       showProgress(0);
 
-      // Fetch July TMAX for each year individually
-      // GSOM monthly data: request July only for each year
+      // Fetch TAVG (and TMAX as fallback) for all months
+      // GSOM data endpoint: max 10-year range per request
       var currentYear = new Date().getFullYear();
       var chunks = [];
-      // Use 10-year windows but limit to July dates
       for (var y = START_YEAR; y <= currentYear; y += 10) {
         var endY = Math.min(y + 9, currentYear);
         chunks.push({
-          startdate: y + "-07-01",
-          enddate: endY + "-07-31"
+          startdate: y + "-01-01",
+          enddate: endY + "-12-31"
         });
       }
 
@@ -631,25 +630,48 @@
         return;
       }
 
-      var highs = [];
+      // Build a map keyed by date (YYYY-MM), preferring TAVG over TMAX
+      var tempByMonth = {};
+      var usedTavg = 0;
+      var usedTmax = 0;
 
       allResults.forEach(function(r) {
-        // Only include July TMAX records
-        var date = r.date.slice(0, 10);
-        var month = date.slice(5, 7);
-        if (r.datatype === "TMAX" && month === "07") {
-          var year = date.slice(0, 4);
-          highs.push({ x: year, y: r.value });
+        var dateKey = r.date.slice(0, 7); // YYYY-MM
+        if (r.datatype === "TAVG") {
+          tempByMonth[dateKey] = { x: r.date.slice(0, 10), y: r.value, type: "TAVG" };
+        } else if (r.datatype === "TMAX") {
+          // Only use TMAX if we don't already have TAVG for this month
+          if (!tempByMonth[dateKey] || tempByMonth[dateKey].type !== "TAVG") {
+            tempByMonth[dateKey] = { x: r.date.slice(0, 10), y: r.value, type: "TMAX" };
+          }
         }
       });
 
+      // Sort by date and build final array
+      var sortedKeys = Object.keys(tempByMonth).sort();
+      var temps = sortedKeys.map(function(k) {
+        var entry = tempByMonth[k];
+        if (entry.type === "TAVG") usedTavg++;
+        else usedTmax++;
+        return { x: entry.x, y: entry.y };
+      });
+
+      var sourceNote = "";
+      if (usedTmax === 0) {
+        sourceNote = "Using TAVG for all months.";
+      } else if (usedTavg === 0) {
+        sourceNote = "TAVG unavailable — using TMAX as fallback.";
+      } else {
+        sourceNote = "TAVG for " + usedTavg + " months, TMAX fallback for " + usedTmax + ".";
+      }
+
       setStatus(
-        highs.length + " July high temperatures loaded (" +
-        apiCalls + " API calls)"
+        temps.length + " monthly temperatures loaded. " + sourceNote +
+        " (" + apiCalls + " API calls)"
       );
       hideProgress();
 
-      renderChart(highs, station.name);
+      renderChart(temps, station.name);
 
     } catch (err) {
       setStatus("Error fetching data: " + err.message, true);
@@ -667,7 +689,7 @@
   }
 
   // ━━━ CHART ━━━
-  function renderChart(highs, stationName) {
+  function renderChart(temps, stationName) {
     elChart.classList.add("visible");
     if (chart) chart.destroy();
 
@@ -676,17 +698,15 @@
     chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: highs.map(function(d) { return d.x; }),
         datasets: [
           {
-            label: "July High (°C)",
-            data: highs.map(function(d) { return d.y; }),
+            label: "Avg Temperature (°C)",
+            data: temps,
             borderColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
-            backgroundColor: "rgba(196, 93, 62, 0.12)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            pointBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
+            backgroundColor: "rgba(196, 93, 62, 0.08)",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHitRadius: 6,
             fill: true,
             tension: 0.3
           }
@@ -707,16 +727,22 @@
             cornerRadius: 4,
             callbacks: {
               title: function(items) {
-                return "July " + items[0].label;
+                return items[0] && items[0].raw ? items[0].raw.x : "";
               },
               label: function(ctx) {
-                return "High: " + ctx.raw.toFixed(1) + " °C";
+                return "Temp: " + ctx.raw.y.toFixed(1) + " °C";
               }
             }
           }
         },
         scales: {
           x: {
+            type: "time",
+            time: {
+              unit: "year",
+              displayFormats: { year: "yyyy" },
+              tooltipFormat: "MMM yyyy"
+            },
             grid: { color: "rgba(0,0,0,0.04)", drawTicks: false },
             ticks: {
               font: { family: "'DM Mono', monospace", size: 11 },
