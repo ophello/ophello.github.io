@@ -236,6 +236,25 @@
   .legend-dot.low { background: var(--low); }
   .legend-dot.trend { background: var(--ink); border-style: dashed; }
 
+  #hover-readout {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+    background: rgba(255,255,255,0.85);
+    padding: 4px 10px;
+    border-radius: 4px;
+    z-index: 10;
+    pointer-events: none;
+    display: none;
+  }
+
+  #hover-readout.active {
+    display: block;
+  }
+
   footer {
     margin-top: 56px;
     padding-top: 20px;
@@ -302,11 +321,14 @@
       <span><span class="legend-dot trend"></span>Linear Trend</span>
     </div>
     <div id="trend-info" style="display:none; text-align:center; font-size:13px; margin-bottom:12px; color:var(--ink); font-weight:500;"></div>
-    <canvas id="tempChart"></canvas>
+    <div style="position:relative;">
+      <div id="hover-readout"></div>
+      <canvas id="tempChart"></canvas>
+    </div>
   </div>
 
   <footer>
-    Version 1.2 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
+    v1.4 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
   </footer>
 
 </div>
@@ -745,10 +767,18 @@
       { x: points[n - 1].xDate, y: slope * points[n - 1].xNum + intercept }
     ];
 
+    // Mean of the trendline (average of start and end predicted values)
+    var trendStart = slope * points[0].xNum + intercept;
+    var trendEnd = slope * points[n - 1].xNum + intercept;
+    var meanTrend = (trendStart + trendEnd) / 2;
+    var totalChange = trendEnd - trendStart;
+
     return {
       trendData: trendData,
       slopePerDecade: slopePerDecade,
-      r2: r2
+      r2: r2,
+      meanTrend: meanTrend,
+      totalChange: totalChange
     };
   }
 
@@ -762,7 +792,9 @@
     var trendLabel = "Trend: " +
       (reg.slopePerDecade >= 0 ? "+" : "") +
       reg.slopePerDecade.toFixed(2) + " °C/decade (R² = " +
-      reg.r2.toFixed(3) + ")";
+      reg.r2.toFixed(3) + ")  ·  Total change since 1980: " +
+      (reg.totalChange >= 0 ? "+" : "") +
+      reg.totalChange.toFixed(2) + " °C";
 
     // Update trend info display
     var trendEl = document.getElementById("trend-info");
@@ -770,6 +802,12 @@
       trendEl.textContent = trendLabel;
       trendEl.style.display = "block";
     }
+
+    var hoverReadout = document.getElementById("hover-readout");
+
+    // Y-axis range: mean trend ± 30°C
+    var yMin = Math.floor(reg.meanTrend - 30);
+    var yMax = Math.ceil(reg.meanTrend + 30);
 
     var ctx = document.getElementById("tempChart").getContext("2d");
 
@@ -784,6 +822,11 @@
             backgroundColor: "rgba(196, 93, 62, 0.08)",
             borderWidth: 1.5,
             pointRadius: 0,
+            pointHoverRadius: 3,
+            pointHoverBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),
+            pointHoverBorderColor: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),
+            pointHoverBorderWidth: 0,
+            pointStyle: "circle",
             pointHitRadius: 6,
             fill: true,
             tension: 0.3,
@@ -796,6 +839,7 @@
             borderWidth: 2,
             borderDash: [8, 4],
             pointRadius: 0,
+            pointHoverRadius: 0,
             pointHitRadius: 0,
             fill: false,
             tension: 0,
@@ -807,27 +851,23 @@
         responsive: true,
         maintainAspectRatio: true,
         aspectRatio: 2.5,
+        animation: false,
         interaction: { mode: "index", intersect: false },
+        onHover: function(event, elements) {
+          if (elements.length > 0) {
+            var el = elements.find(function(e) { return e.datasetIndex === 0; });
+            if (el) {
+              var raw = temps[el.index];
+              hoverReadout.textContent = raw.x + "  —  " + raw.y.toFixed(1) + " °C";
+              hoverReadout.classList.add("active");
+            }
+          } else {
+            hoverReadout.classList.remove("active");
+          }
+        },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            backgroundColor: "#1b1e2a",
-            titleFont: { family: "'DM Mono', monospace", size: 12 },
-            bodyFont: { family: "'DM Mono', monospace", size: 12 },
-            padding: 12,
-            cornerRadius: 4,
-            filter: function(tooltipItem) {
-              return tooltipItem.datasetIndex === 0;
-            },
-            callbacks: {
-              title: function(items) {
-                return items[0] && items[0].raw ? items[0].raw.x : "";
-              },
-              label: function(ctx) {
-                return "Temp: " + ctx.raw.y.toFixed(1) + " °C";
-              }
-            }
-          }
+          tooltip: { enabled: false }
         },
         scales: {
           x: {
@@ -846,6 +886,8 @@
             border: { color: "#d2cdc3" }
           },
           y: {
+            min: yMin,
+            max: yMax,
             title: {
               display: true,
               text: "Temperature (°C)",
