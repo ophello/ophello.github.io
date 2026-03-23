@@ -264,7 +264,7 @@
 
   <header>
     <h1>Climate Data Explorer</h1>
-    <p>Monthly temperature records from NOAA's Climate Data Online — 1980 to present</p>
+    <p>July high temperatures from NOAA's Climate Data Online — 1980 to present</p>
   </header>
 
   <div class="controls">
@@ -297,8 +297,7 @@
 
   <div class="chart-wrap" id="chart-wrap">
     <div class="chart-legend">
-      <span><span class="legend-dot high"></span>Monthly High (°C)</span>
-      <span><span class="legend-dot low"></span>Monthly Low (°C)</span>
+      <span><span class="legend-dot high"></span>July High Temperature (°C)</span>
     </div>
     <canvas id="tempChart"></canvas>
   </div>
@@ -316,7 +315,7 @@
   var NOAA_BASE  = "https://www.ncei.noaa.gov/cdo-web/api/v2";
   var CORS_PROXY = "https://corsproxy.io/?";
   var DATASET    = "GSOM";
-  var DATA_TYPES = "TMAX,TMIN";
+  var DATA_TYPES = "TMAX";
   var START_YEAR = 1980;
 
   // ━━━ DOM ━━━
@@ -555,14 +554,16 @@
       setStatus("Fetching monthly temperature data…");
       showProgress(0);
 
-      // GSOM data endpoint: max 10-year range per request
+      // Fetch July TMAX for each year individually
+      // GSOM monthly data: request July only for each year
       var currentYear = new Date().getFullYear();
       var chunks = [];
+      // Use 10-year windows but limit to July dates
       for (var y = START_YEAR; y <= currentYear; y += 10) {
         var endY = Math.min(y + 9, currentYear);
         chunks.push({
-          startdate: y + "-01-01",
-          enddate: endY + "-12-31"
+          startdate: y + "-07-01",
+          enddate: endY + "-07-31"
         });
       }
 
@@ -598,7 +599,6 @@
             if (chunkTotal === null && data.metadata && data.metadata.resultset) {
               chunkTotal = data.metadata.resultset.count;
             }
-            // Check if we've gotten all records for this chunk
             var fetched = offset - 1 + data.results.length;
             if (chunkTotal && fetched >= chunkTotal) break;
             if (data.results.length < limit) break;
@@ -619,27 +619,24 @@
       }
 
       var highs = [];
-      var lows = [];
 
       allResults.forEach(function(r) {
+        // Only include July TMAX records
         var date = r.date.slice(0, 10);
-        var val = r.value;
-        if (r.datatype === "TMAX") {
-          highs.push({ x: date, y: val });
-        } else if (r.datatype === "TMIN") {
-          lows.push({ x: date, y: val });
+        var month = date.slice(5, 7);
+        if (r.datatype === "TMAX" && month === "07") {
+          var year = date.slice(0, 4);
+          highs.push({ x: year, y: r.value });
         }
       });
 
       setStatus(
-        allResults.length.toLocaleString() + " records loaded — " +
-        highs.length.toLocaleString() + " monthly highs, " +
-        lows.length.toLocaleString() + " monthly lows. (" +
+        highs.length + " July high temperatures loaded (" +
         apiCalls + " API calls)"
       );
       hideProgress();
 
-      renderChart(highs, lows, station.name);
+      renderChart(highs, station.name);
 
     } catch (err) {
       setStatus("Error fetching data: " + err.message, true);
@@ -657,7 +654,7 @@
   }
 
   // ━━━ CHART ━━━
-  function renderChart(highs, lows, stationName) {
+  function renderChart(highs, stationName) {
     elChart.classList.add("visible");
     if (chart) chart.destroy();
 
@@ -666,30 +663,19 @@
     chart = new Chart(ctx, {
       type: "line",
       data: {
+        labels: highs.map(function(d) { return d.x; }),
         datasets: [
           {
-            label: "Monthly High (°C)",
-            data: highs,
+            label: "July High (°C)",
+            data: highs.map(function(d) { return d.y; }),
             borderColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
-            backgroundColor: "rgba(196, 93, 62, 0.08)",
-            borderWidth: 1.5,
-            pointRadius: 0,
-            pointHitRadius: 6,
-            fill: false,
-            tension: 0.3,
-            order: 1
-          },
-          {
-            label: "Monthly Low (°C)",
-            data: lows,
-            borderColor: getComputedStyle(document.documentElement).getPropertyValue("--low").trim(),
-            backgroundColor: "rgba(62, 127, 168, 0.08)",
-            borderWidth: 1.5,
-            pointRadius: 0,
-            pointHitRadius: 6,
-            fill: false,
-            tension: 0.3,
-            order: 2
+            backgroundColor: "rgba(196, 93, 62, 0.12)",
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
+            fill: true,
+            tension: 0.3
           }
         ]
       },
@@ -708,23 +694,16 @@
             cornerRadius: 4,
             callbacks: {
               title: function(items) {
-                return items[0] && items[0].raw ? items[0].raw.x : "";
+                return "July " + items[0].label;
               },
               label: function(ctx) {
-                var lbl = ctx.dataset.label.indexOf("High") >= 0 ? "High" : "Low";
-                return lbl + ": " + ctx.raw.y.toFixed(1) + " °C";
+                return "High: " + ctx.raw.toFixed(1) + " °C";
               }
             }
           }
         },
         scales: {
           x: {
-            type: "time",
-            time: {
-              unit: "year",
-              displayFormats: { year: "yyyy" },
-              tooltipFormat: "MMM yyyy"
-            },
             grid: { color: "rgba(0,0,0,0.04)", drawTicks: false },
             ticks: {
               font: { family: "'DM Mono', monospace", size: 11 },
