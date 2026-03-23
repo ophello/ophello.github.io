@@ -206,8 +206,8 @@
   }
 
   .chart-sidebar {
-    flex: 0 0 240px;
-    min-width: 200px;
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -324,7 +324,7 @@
   </div>
 
   <footer>
-    v1.0
+    v1.1
   </footer>
 
 </div>
@@ -889,8 +889,8 @@
 
 
     // Y-axis range: mean trend ± 30°C
-    var yMin = Math.floor(reg.meanTrend - 30);
-    var yMax = Math.ceil(reg.meanTrend + 30);
+    var yMin = -50;
+    var yMax = 50;
 
     var ctx = document.getElementById("tempChart").getContext("2d");
 
@@ -967,18 +967,12 @@
           y: {
             min: yMin,
             max: yMax,
-            title: {
-              display: true,
-              text: "Temperature (°C)",
-              font: { family: "'DM Mono', monospace", size: 11, weight: 400 },
-              color: "#807a6e"
-            },
             grid: { color: "rgba(0,0,0,0.04)", drawTicks: false },
             ticks: {
               font: { family: "'DM Mono', monospace", size: 11 },
               color: "#807a6e",
               padding: 8,
-              callback: function(val) { return val + "°"; }
+              callback: function(val) { return val + "°C"; }
             },
             border: { color: "#d2cdc3" }
           }
