@@ -328,7 +328,7 @@
   </div>
 
   <footer>
-    v1.4 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
+    v1.5 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
   </footer>
 
 </div>
@@ -546,13 +546,16 @@
         return;
       }
 
-      // Only show stations with data going back to 1980 or earlier
+      // Only show stations with data from 1980 or earlier AND within the last year
+      var cutoffYear = String(new Date().getFullYear() - 1);
       allStations = allStations.filter(function(s) {
-        return s.mindate && s.mindate.slice(0, 4) <= "1980";
+        var startsEarly = s.mindate && s.mindate.slice(0, 4) <= "1980";
+        var endsRecent = s.maxdate && s.maxdate.slice(0, 4) >= cutoffYear;
+        return startsEarly && endsRecent;
       });
 
       if (allStations.length === 0) {
-        setStatus("No stations with data back to 1980 found in this city.", true);
+        setStatus("No stations with continuous data from 1980 to present found in this city.", true);
         selStation.innerHTML = '<option value="">No qualifying stations</option>';
         return;
       }
@@ -789,10 +792,7 @@
 
     // Compute trendline
     var reg = linearRegression(temps);
-    var trendLabel = "Trend: " +
-      (reg.slopePerDecade >= 0 ? "+" : "") +
-      reg.slopePerDecade.toFixed(2) + " °C/decade (R² = " +
-      reg.r2.toFixed(3) + ")  ·  Total change since 1980: " +
+    var trendLabel = "Trend in temp since 1980: " +
       (reg.totalChange >= 0 ? "+" : "") +
       reg.totalChange.toFixed(2) + " °C";
 
