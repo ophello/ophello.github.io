@@ -165,9 +165,7 @@
   }
 
   .station-info {
-    border-bottom: 1.5px solid var(--rule);
-    padding-bottom: 16px;
-    margin-bottom: 16px;
+    padding-bottom: 12px;
     display: none;
   }
 
@@ -176,44 +174,58 @@
   .station-info h2 {
     font-family: var(--font-display);
     font-weight: 500;
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     margin-bottom: 4px;
+    line-height: 1.3;
   }
 
   .station-meta {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--muted);
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    flex-direction: column;
+    gap: 2px;
     margin-top: 4px;
   }
 
-  .station-meta span::before {
-    content: '·';
-    margin-right: 6px;
-    color: var(--rule);
-  }
-
-  .station-meta span:first-child::before { display: none; }
+  .station-meta span::before { display: none; }
 
   .chart-wrap {
     background: #fff;
     border: 1.5px solid var(--rule);
     border-radius: var(--radius);
-    padding: 28px 24px 20px;
+    padding: 24px;
     display: none;
   }
 
   .chart-wrap.visible { display: block; }
 
-  .chart-wrap canvas { width: 100% !important; }
+  .chart-layout {
+    display: flex;
+    gap: 24px;
+  }
+
+  .chart-sidebar {
+    flex: 0 0 240px;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .chart-main {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+
+  .chart-main canvas { width: 100% !important; }
 
   .chart-legend {
     display: flex;
-    gap: 24px;
-    justify-content: center;
-    margin-bottom: 16px;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
     font-size: 12px;
     letter-spacing: 0.03em;
   }
@@ -249,6 +261,8 @@
     .controls { flex-direction: column; }
     .field { min-width: 100%; }
     .btn-generate { width: 100%; }
+    .chart-layout { flex-direction: column; }
+    .chart-sidebar { flex: none; min-width: 100%; }
   }
 
   @keyframes pulse {
@@ -286,27 +300,31 @@
   <div class="progress-bar" id="progress"><div class="progress-bar-fill" id="progress-fill"></div></div>
 
   <div class="chart-wrap" id="chart-wrap">
-    <div class="station-info" id="station-info">
-      <h2 id="info-name"></h2>
-      <div class="station-meta">
-        <span id="info-id"></span>
-        <span id="info-elev"></span>
-        <span id="info-range"></span>
+    <div class="chart-layout">
+      <div class="chart-sidebar">
+        <div class="station-info" id="station-info">
+          <h2 id="info-name"></h2>
+          <div class="station-meta">
+            <span id="info-id"></span>
+            <span id="info-elev"></span>
+            <span id="info-range"></span>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:8px;">Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2</div>
+        </div>
+        <div class="chart-legend">
+          <span><span class="legend-dot high"></span>Monthly Avg Temperature (°C)</span>
+          <span><span class="legend-dot trend"></span>Linear Trend</span>
+        </div>
+        <div id="trend-info" style="display:none; font-size:13px; margin-top:12px; color:var(--ink); font-weight:500;"></div>
       </div>
-      <div style="font-size:11px; color:var(--muted); margin-top:8px;">Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2</div>
-    </div>
-    <div class="chart-legend">
-      <span><span class="legend-dot high"></span>Monthly Avg Temperature (°C)</span>
-      <span><span class="legend-dot trend"></span>Linear Trend</span>
-    </div>
-    <div id="trend-info" style="display:none; text-align:center; font-size:13px; margin-bottom:12px; color:var(--ink); font-weight:500;"></div>
-    <div style="position:relative; height:400px;">
-      <canvas id="tempChart"></canvas>
+      <div class="chart-main">
+        <canvas id="tempChart"></canvas>
+      </div>
     </div>
   </div>
 
   <footer>
-    v1.9
+    v2.0
   </footer>
 
 </div>
@@ -869,8 +887,6 @@
       trendEl.style.display = "block";
     }
 
-    var hoverReadout = document.getElementById("hover-readout");
-    if (hoverReadout) hoverReadout.style.display = "none";
 
     // Y-axis range: mean trend ± 30°C
     var yMin = Math.floor(reg.meanTrend - 30);
