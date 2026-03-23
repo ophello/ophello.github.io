@@ -445,6 +445,19 @@
         return;
       }
 
+      // Filter to only cities that belong to this state
+      // CDO city IDs follow the pattern CITY:USXXNNNN where XX is the state FIPS number
+      var stateCode = fips.replace("FIPS:", "");
+      allCities = allCities.filter(function(c) {
+        return c.id && c.id.indexOf("CITY:US" + stateCode) === 0;
+      });
+
+      if (allCities.length === 0) {
+        setStatus("No cities found for this state.", true);
+        selCity.innerHTML = '<option value="">No cities found</option>';
+        return;
+      }
+
       selCity.innerHTML = '<option value="">Select a city… (' + allCities.length + ' found)</option>';
       allCities.forEach(function(c) {
         var opt = document.createElement("option");
