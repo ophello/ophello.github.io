@@ -325,7 +325,9 @@
 (function() {
   // ━━━ CONFIG ━━━
   const API_TOKEN = "ENxLSyBnXKBfPBnzNlkomSAMEDgLbwYF";
-  const API_BASE  = "https://www.ncdc.noaa.gov/cdo-web/api/v2";
+  const NOAA_BASE = "https://www.ncdc.noaa.gov/cdo-web/api/v2";
+  const CORS_PROXY = "https://corsproxy.io/?";
+  const API_BASE  = CORS_PROXY + encodeURIComponent(NOAA_BASE);
   const DATASET   = "GSOM";
   const DATA_TYPES = "TMAX,TMIN";
   const START_DATE = "1980-01-01";
@@ -346,11 +348,12 @@
 
   // ━━━ API HELPER ━━━
   async function cdoFetch(endpoint, params = {}) {
-    const url = new URL(API_BASE + endpoint);
+    const noaaUrl = new URL(NOAA_BASE + endpoint);
     Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+      if (v !== undefined && v !== null && v !== "") noaaUrl.searchParams.set(k, String(v));
     });
-    const res = await fetch(url.toString(), {
+    const proxyUrl = CORS_PROXY + encodeURIComponent(noaaUrl.toString());
+    const res = await fetch(proxyUrl, {
       headers: { token: API_TOKEN }
     });
     if (!res.ok) {
