@@ -329,7 +329,7 @@
   </div>
 
   <footer>
-    v1.1
+    v1.2
   </footer>
 
 </div>
@@ -491,8 +491,6 @@
     selStation.innerHTML = '<option value="">Select a station…</option>';
     selStation.disabled = true;
     btnGen.disabled = true;
-    elInfo.classList.remove("visible");
-    elChart.classList.remove("visible");
     stationsCache = {};
 
     var fips = this.value;
@@ -611,8 +609,6 @@
     selStation.innerHTML = '<option value="">Select a station…</option>';
     selStation.disabled = true;
     btnGen.disabled = true;
-    elInfo.classList.remove("visible");
-    elChart.classList.remove("visible");
 
     var city = this.value;
     if (!city || !stationsCache[city]) return;
@@ -634,8 +630,6 @@
   // ━━━ STATION → ENABLE BUTTON ━━━
   selStation.addEventListener("change", function() {
     btnGen.disabled = !this.value;
-    elInfo.classList.remove("visible");
-    elChart.classList.remove("visible");
   });
 
   // ━━━ GENERATE DATA ━━━
