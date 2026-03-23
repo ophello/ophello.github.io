@@ -291,10 +291,6 @@
       <select id="sel-state"><option value="">Select a state…</option></select>
     </div>
     <div class="field">
-      <label for="sel-city">City</label>
-      <select id="sel-city" disabled><option value="">Select a city…</option></select>
-    </div>
-    <div class="field">
       <label for="sel-station">Station</label>
       <select id="sel-station" disabled><option value="">Select a station…</option></select>
     </div>
@@ -329,7 +325,7 @@
   </div>
 
   <footer>
-    v1.2
+    v1.3
   </footer>
 
 </div>
@@ -346,7 +342,6 @@
 
   // ━━━ DOM ━━━
   var selState   = document.getElementById("sel-state");
-  var selCity    = document.getElementById("sel-city");
   var selStation = document.getElementById("sel-station");
   var btnGen     = document.getElementById("btn-gen");
   var elStatus   = document.getElementById("status");
@@ -483,20 +478,16 @@
   var currentFips = "";
 
   // ━━━ STATE → LOAD ALL STATIONS, GROUP BY CITY ━━━
-  var stationsCache = {};
 
   selState.addEventListener("change", async function() {
-    selCity.innerHTML = '<option value="">Loading stations…</option>';
-    selCity.disabled = true;
-    selStation.innerHTML = '<option value="">Select a station…</option>';
+    selStation.innerHTML = '<option value="">Loading stations…</option>';
     selStation.disabled = true;
     btnGen.disabled = true;
-    stationsCache = {};
 
     var fips = this.value;
     currentFips = fips;
     if (!fips) {
-      selCity.innerHTML = '<option value="">Select a city…</option>';
+      selStation.innerHTML = '<option value="">Select a station…</option>';
       return;
     }
 
@@ -537,7 +528,7 @@
 
       if (allStations.length === 0) {
         setStatus("No qualifying stations found in this state.", true);
-        selCity.innerHTML = '<option value="">No cities found</option>';
+        selStation.innerHTML = '<option value="">No stations found</option>';
         return;
       }
 
@@ -554,24 +545,25 @@
       }
 
       // Group stations by city
+      var cityGroups = {};
       allStations.forEach(function(s) {
         var city = parseCity(s.name || "Unknown");
         if (!city) city = s.name || "Unknown";
-        if (!stationsCache[city]) stationsCache[city] = [];
-        stationsCache[city].push(s);
+        if (!cityGroups[city]) cityGroups[city] = [];
+        cityGroups[city].push(s);
       });
 
-      // Only show cities that match top 3 by population (partial match)
+      // Filter to top 3 cities by population (partial match)
       var topList = (TOP_CITIES[currentFips] || []).map(function(c) { return c.toUpperCase(); });
-      var cityNames = Object.keys(stationsCache).filter(function(city) {
+      var matchedCities = Object.keys(cityGroups).filter(function(city) {
         var cu = city.toUpperCase();
         return topList.some(function(top) {
           return cu.indexOf(top) !== -1 || top.indexOf(cu) !== -1;
         });
       });
 
-      // Sort by population rank (match to closest top city)
-      cityNames.sort(function(a, b) {
+      // Sort by population rank
+      matchedCities.sort(function(a, b) {
         var au = a.toUpperCase(), bu = b.toUpperCase();
         var aRank = topList.length, bRank = topList.length;
         topList.forEach(function(top, i) {
@@ -582,49 +574,36 @@
         return a.localeCompare(b);
       });
 
-      if (cityNames.length === 0) {
+      if (matchedCities.length === 0) {
         setStatus("No qualifying stations found in the top cities for this state.", true);
-        selCity.innerHTML = '<option value="">No cities found</option>';
+        selStation.innerHTML = '<option value="">No stations found</option>';
         return;
       }
 
-      selCity.innerHTML = '<option value="">Select a city… (' + cityNames.length + ')</option>';
-      cityNames.forEach(function(city) {
-        var opt = document.createElement("option");
-        opt.value = city;
-        opt.textContent = city;
-        selCity.appendChild(opt);
+      // Populate station dropdown grouped by city
+      var totalStations = 0;
+      selStation.innerHTML = '<option value="">Select a station…</option>';
+      matchedCities.forEach(function(city) {
+        var stations = cityGroups[city];
+        var group = document.createElement("optgroup");
+        group.label = city;
+        stations.forEach(function(s) {
+          var opt = document.createElement("option");
+          opt.value = JSON.stringify(s);
+          var dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
+          opt.textContent = s.name + " [" + dates + "]";
+          group.appendChild(opt);
+          totalStations++;
+        });
+        selStation.appendChild(group);
       });
 
-      selCity.disabled = false;
-      setStatus(allStations.length + " stations across " + cityNames.length + " cities.");
+      selStation.disabled = false;
+      setStatus(totalStations + " stations across " + matchedCities.length + " cities.");
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
-      selCity.innerHTML = '<option value="">Error</option>';
+      selStation.innerHTML = '<option value="">Error</option>';
     }
-  });
-
-  // ━━━ CITY → POPULATE STATIONS FROM CACHE ━━━
-  selCity.addEventListener("change", function() {
-    selStation.innerHTML = '<option value="">Select a station…</option>';
-    selStation.disabled = true;
-    btnGen.disabled = true;
-
-    var city = this.value;
-    if (!city || !stationsCache[city]) return;
-
-    var stations = stationsCache[city];
-    selStation.innerHTML = '<option value="">Select a station… (' + stations.length + ')</option>';
-    stations.forEach(function(s) {
-      var opt = document.createElement("option");
-      opt.value = JSON.stringify(s);
-      var dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
-      opt.textContent = s.name + " [" + dates + "]";
-      selStation.appendChild(opt);
-    });
-
-    selStation.disabled = false;
-    setStatus(stations.length + " station" + (stations.length > 1 ? "s" : "") + " in " + city + ".");
   });
 
   // ━━━ STATION → ENABLE BUTTON ━━━
@@ -640,7 +619,6 @@
     var station = JSON.parse(stationJson);
     btnGen.disabled = true;
     selState.disabled = true;
-    selCity.disabled = true;
     selStation.disabled = true;
 
     document.getElementById("info-name").textContent = station.name;
@@ -771,7 +749,6 @@
 
   function enableControls() {
     selState.disabled = false;
-    selCity.disabled = false;
     selStation.disabled = false;
     btnGen.disabled = false;
   }
