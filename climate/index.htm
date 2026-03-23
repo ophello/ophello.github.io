@@ -263,7 +263,7 @@
 
   <header>
     <h1>Climate Data Explorer</h1>
-    <p>Monthly average temperatures from NOAA's Climate Data Online — 1980 to present</p>
+    <p>Monthly average temperatures from NOAA's Climate Data Online — 1970 to present</p>
   </header>
 
   <div class="controls">
@@ -305,8 +305,10 @@
     </div>
   </div>
 
+  <pre id="debug-output" style="display:none; background:#fff; border:1.5px solid var(--rule); border-radius:var(--radius); padding:16px; margin-top:24px; font-family:var(--font-mono); font-size:11px; color:var(--ink); white-space:pre-wrap; max-height:400px; overflow-y:auto;"></pre>
+
   <footer>
-    v1.7
+    v1.8
   </footer>
 
 </div>
@@ -319,7 +321,7 @@
   var CORS_PROXY = "https://corsproxy.io/?";
   var DATASET    = "GSOM";
   var DATA_TYPES = "TAVG,TMAX";
-  var START_YEAR = 1980;
+  var START_YEAR = 1970;
 
   // ━━━ DOM ━━━
   var selState   = document.getElementById("sel-state");
@@ -506,10 +508,10 @@
         }
       }
 
-      // Filter: must have data from 1980 or earlier AND within the last year
+      // Filter: must have data from 1970 or earlier AND within the last year
       var cutoffYear = String(new Date().getFullYear() - 1);
       allStations = allStations.filter(function(s) {
-        var startsEarly = s.mindate && s.mindate.slice(0, 4) <= "1980";
+        var startsEarly = s.mindate && s.mindate.slice(0, 4) <= "1970";
         var endsRecent = s.maxdate && s.maxdate.slice(0, 4) >= cutoffYear;
         return startsEarly && endsRecent;
       });
@@ -576,7 +578,31 @@
       });
 
       selCity.disabled = false;
-      setStatus(allStations.length + " stations across " + cityNames.length + " cities.");
+
+      // DEBUG: show all parsed city names and match results
+      var allParsed = Object.keys(stationsCache).sort();
+      var matched = cityNames.slice();
+      var unmatched = allParsed.filter(function(c) { return matched.indexOf(c) === -1; });
+      console.log("=== DEBUG: City matching for " + currentFips + " ===");
+      console.log("Top list:", topList);
+      console.log("Matched (" + matched.length + "):", matched);
+      console.log("Unmatched (" + unmatched.length + "):", unmatched);
+      console.log("All parsed (" + allParsed.length + "):", allParsed);
+      // Also show raw station names grouped by parsed city
+      var debugLines = ["── TOP LIST: " + topList.join(", ") + " ──\n"];
+      debugLines.push("✓ MATCHED (" + matched.length + "): " + matched.join(", ") + "\n");
+      debugLines.push("✗ UNMATCHED (" + unmatched.length + "): " + unmatched.join(", ") + "\n");
+      debugLines.push("\n── RAW STATION NAMES BY PARSED CITY ──");
+      allParsed.forEach(function(city) {
+        var names = stationsCache[city].map(function(s) { return s.name; });
+        debugLines.push(city + ": " + names.join(" | "));
+      });
+      setStatus("DEBUG — see below. " + allStations.length + " stations, " + allParsed.length + " parsed cities, " + matched.length + " matched top 3.");
+      var debugEl = document.getElementById("debug-output");
+      if (debugEl) {
+        debugEl.textContent = debugLines.join("\n");
+        debugEl.style.display = "block";
+      }
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
       selCity.innerHTML = '<option value="">Error</option>';
@@ -824,7 +850,7 @@
 
     // Compute trendline
     var reg = linearRegression(temps);
-    var trendLabel = "Trend in temp since 1980: " +
+    var trendLabel = "Trend in temp since 1970: " +
       (reg.totalChange >= 0 ? "+" : "") +
       reg.totalChange.toFixed(2) + " °C";
 
