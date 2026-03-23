@@ -331,7 +331,6 @@
   var elChart    = document.getElementById("chart-wrap");
 
   var chart = null;
-  var stationsCache = {};
 
   // ━━━ API HELPER ━━━
   async function cdoFetch(endpoint, params) {
@@ -398,9 +397,9 @@
     selState.appendChild(opt);
   });
 
-  // ━━━ STATE → LOAD STATIONS → GROUP BY CITY ━━━
+  // ━━━ STATE → LOAD CITIES via /locations API ━━━
   selState.addEventListener("change", async function() {
-    selCity.innerHTML = '<option value="">Loading stations…</option>';
+    selCity.innerHTML = '<option value="">Loading cities…</option>';
     selCity.disabled = true;
     selStation.innerHTML = '<option value="">Select a station…</option>';
     selStation.disabled = true;
@@ -414,7 +413,70 @@
       return;
     }
 
-    setStatus("Loading stations for this state…");
+    setStatus("Loading cities for this state…");
+
+    try {
+      var allCities = [];
+      var offset = 1;
+      var limit = 1000;
+
+      while (true) {
+        var data = await cdoFetch("/locations", {
+          locationcategoryid: "CITY",
+          datasetid: DATASET,
+          locationid: fips,
+          sortfield: "name",
+          limit: limit,
+          offset: offset
+        });
+
+        if (data.results && data.results.length > 0) {
+          allCities = allCities.concat(data.results);
+          var total = data.metadata && data.metadata.resultset ? data.metadata.resultset.count : 0;
+          if (allCities.length >= total) break;
+          offset += limit;
+        } else {
+          break;
+        }
+      }
+
+      if (allCities.length === 0) {
+        setStatus("No cities with monthly temperature data found.", true);
+        selCity.innerHTML = '<option value="">No cities found</option>';
+        return;
+      }
+
+      selCity.innerHTML = '<option value="">Select a city… (' + allCities.length + ' found)</option>';
+      allCities.forEach(function(c) {
+        var opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        selCity.appendChild(opt);
+      });
+
+      selCity.disabled = false;
+      setStatus(allCities.length + " cities found.");
+    } catch (err) {
+      setStatus("Error loading cities: " + err.message, true);
+      selCity.innerHTML = '<option value="">Error</option>';
+    }
+  });
+
+  // ━━━ CITY → LOAD STATIONS via /stations API ━━━
+  selCity.addEventListener("change", async function() {
+    selStation.innerHTML = '<option value="">Loading stations…</option>';
+    selStation.disabled = true;
+    btnGen.disabled = true;
+    elInfo.classList.remove("visible");
+    elChart.classList.remove("visible");
+
+    var cityId = this.value;
+    if (!cityId) {
+      selStation.innerHTML = '<option value="">Select a station…</option>';
+      return;
+    }
+
+    setStatus("Loading stations for this city…");
 
     try {
       var allStations = [];
@@ -424,11 +486,11 @@
       while (true) {
         var data = await cdoFetch("/stations", {
           datasetid: DATASET,
-          locationid: fips,
+          locationid: cityId,
           datatypeid: "TMAX",
+          sortfield: "name",
           limit: limit,
-          offset: offset,
-          sortfield: "name"
+          offset: offset
         });
 
         if (data.results && data.results.length > 0) {
@@ -442,66 +504,26 @@
       }
 
       if (allStations.length === 0) {
-        setStatus("No stations with monthly temperature data found.", true);
-        selCity.innerHTML = '<option value="">No cities found</option>';
+        setStatus("No stations found in this city.", true);
+        selStation.innerHTML = '<option value="">No stations found</option>';
         return;
       }
 
-      stationsCache = {};
-
+      selStation.innerHTML = '<option value="">Select a station… (' + allStations.length + ' found)</option>';
       allStations.forEach(function(s) {
-        var name = s.name || "Unknown";
-        var city = name.replace(/\s+\d[\d\.]*\s*(N|S|E|W|NE|NW|SE|SW)?\s*$/i, "")
-                       .replace(/\s*,.*$/, "")
-                       .replace(/\s+(AP|AIRPORT|ARPT|ASOS|AWOS|WSO|WFO|COOP|WBAN).*$/i, "")
-                       .trim();
-        if (!city) city = name;
-        city = city.replace(/\b\w/g, function(c) { return c.toUpperCase(); })
-                   .replace(/\b(Of|The|And|In|At|To|For)\b/g, function(w) { return w.toLowerCase(); });
-
-        if (!stationsCache[city]) stationsCache[city] = [];
-        stationsCache[city].push(s);
-      });
-
-      var cityNames = Object.keys(stationsCache).sort();
-      selCity.innerHTML = '<option value="">Select a city… (' + cityNames.length + ' found)</option>';
-      cityNames.forEach(function(city) {
         var opt = document.createElement("option");
-        opt.value = city;
-        var n = stationsCache[city].length;
-        opt.textContent = city + " (" + n + " station" + (n > 1 ? "s" : "") + ")";
-        selCity.appendChild(opt);
+        opt.value = JSON.stringify(s);
+        var dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
+        opt.textContent = s.name + " [" + dates + "]";
+        selStation.appendChild(opt);
       });
 
-      selCity.disabled = false;
-      setStatus(allStations.length + " stations across " + cityNames.length + " cities.");
+      selStation.disabled = false;
+      setStatus(allStations.length + " station" + (allStations.length > 1 ? "s" : "") + " found.");
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
-      selCity.innerHTML = '<option value="">Error</option>';
+      selStation.innerHTML = '<option value="">Error</option>';
     }
-  });
-
-  // ━━━ CITY → STATIONS ━━━
-  selCity.addEventListener("change", function() {
-    selStation.innerHTML = '<option value="">Select a station…</option>';
-    selStation.disabled = true;
-    btnGen.disabled = true;
-    elInfo.classList.remove("visible");
-    elChart.classList.remove("visible");
-
-    var city = this.value;
-    if (!city || !stationsCache[city]) return;
-
-    stationsCache[city].forEach(function(s) {
-      var opt = document.createElement("option");
-      opt.value = JSON.stringify(s);
-      var dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
-      opt.textContent = s.name + " [" + dates + "]";
-      selStation.appendChild(opt);
-    });
-
-    selStation.disabled = false;
-    setStatus("");
   });
 
   // ━━━ STATION → ENABLE BUTTON ━━━
