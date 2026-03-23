@@ -165,11 +165,9 @@
   }
 
   .station-info {
-    background: var(--warm);
-    border: 1.5px solid var(--rule);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    margin-bottom: 32px;
+    border-bottom: 1.5px solid var(--rule);
+    padding-bottom: 16px;
+    margin-bottom: 16px;
     display: none;
   }
 
@@ -236,25 +234,6 @@
   .legend-dot.low { background: var(--low); }
   .legend-dot.trend { background: var(--ink); border-style: dashed; }
 
-  #hover-readout {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink);
-    background: rgba(255,255,255,0.85);
-    padding: 4px 10px;
-    border-radius: 4px;
-    z-index: 10;
-    pointer-events: none;
-    display: none;
-  }
-
-  #hover-readout.active {
-    display: block;
-  }
-
   footer {
     margin-top: 56px;
     padding-top: 20px;
@@ -306,29 +285,28 @@
   <div class="status" id="status"></div>
   <div class="progress-bar" id="progress"><div class="progress-bar-fill" id="progress-fill"></div></div>
 
-  <div class="station-info" id="station-info">
-    <h2 id="info-name"></h2>
-    <div class="station-meta">
-      <span id="info-id"></span>
-      <span id="info-elev"></span>
-      <span id="info-range"></span>
-    </div>
-  </div>
-
   <div class="chart-wrap" id="chart-wrap">
+    <div class="station-info" id="station-info">
+      <h2 id="info-name"></h2>
+      <div class="station-meta">
+        <span id="info-id"></span>
+        <span id="info-elev"></span>
+        <span id="info-range"></span>
+      </div>
+      <div style="font-size:11px; color:var(--muted); margin-top:8px;">Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2</div>
+    </div>
     <div class="chart-legend">
       <span><span class="legend-dot high"></span>Monthly Avg Temperature (°C)</span>
       <span><span class="legend-dot trend"></span>Linear Trend</span>
     </div>
     <div id="trend-info" style="display:none; text-align:center; font-size:13px; margin-bottom:12px; color:var(--ink); font-weight:500;"></div>
-    <div style="position:relative;">
-      <div id="hover-readout"></div>
+    <div style="position:relative; height:400px;">
       <canvas id="tempChart"></canvas>
     </div>
   </div>
 
   <footer>
-    v1.7 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
+    v1.7
   </footer>
 
 </div>
@@ -562,12 +540,25 @@
         stationsCache[city].push(s);
       });
 
-      // Only show top 3 cities by population for this state
+      // Only show cities that match top 3 by population (partial match)
       var topList = (TOP_CITIES[currentFips] || []).map(function(c) { return c.toUpperCase(); });
       var cityNames = Object.keys(stationsCache).filter(function(city) {
-        return topList.indexOf(city.toUpperCase()) !== -1;
-      }).sort(function(a, b) {
-        return topList.indexOf(a.toUpperCase()) - topList.indexOf(b.toUpperCase());
+        var cu = city.toUpperCase();
+        return topList.some(function(top) {
+          return cu.indexOf(top) !== -1 || top.indexOf(cu) !== -1;
+        });
+      });
+
+      // Sort by population rank (match to closest top city)
+      cityNames.sort(function(a, b) {
+        var au = a.toUpperCase(), bu = b.toUpperCase();
+        var aRank = topList.length, bRank = topList.length;
+        topList.forEach(function(top, i) {
+          if ((au.indexOf(top) !== -1 || top.indexOf(au) !== -1) && i < aRank) aRank = i;
+          if ((bu.indexOf(top) !== -1 || top.indexOf(bu) !== -1) && i < bRank) bRank = i;
+        });
+        if (aRank !== bRank) return aRank - bRank;
+        return a.localeCompare(b);
       });
 
       if (cityNames.length === 0) {
@@ -641,6 +632,7 @@
       ? "Elev. " + station.elevation + " m" : "";
     document.getElementById("info-range").textContent = "Records: " + (station.mindate || "?") + " → " + (station.maxdate || "?");
     elInfo.classList.add("visible");
+    elChart.classList.add("visible");
 
     try {
       setStatus("Fetching monthly temperature data…");
@@ -844,6 +836,7 @@
     }
 
     var hoverReadout = document.getElementById("hover-readout");
+    if (hoverReadout) hoverReadout.style.display = "none";
 
     // Y-axis range: mean trend ± 30°C
     var yMin = Math.floor(reg.meanTrend - 30);
@@ -862,12 +855,7 @@
             backgroundColor: "rgba(196, 93, 62, 0.08)",
             borderWidth: 1.5,
             pointRadius: 0,
-            pointHoverRadius: 3,
-            pointHoverBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),
-            pointHoverBorderColor: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),
-            pointHoverBorderWidth: 0,
-            pointStyle: "circle",
-            pointHitRadius: 6,
+            pointHitRadius: 0,
             fill: true,
             tension: 0.3,
             order: 2
@@ -879,7 +867,6 @@
             borderWidth: 2,
             borderDash: [8, 4],
             pointRadius: 0,
-            pointHoverRadius: 0,
             pointHitRadius: 0,
             fill: false,
             tension: 0,
@@ -889,22 +876,9 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 2.5,
+        maintainAspectRatio: false,
         animation: false,
-        interaction: { mode: "index", intersect: false },
-        onHover: function(event, elements) {
-          if (elements.length > 0) {
-            var el = elements.find(function(e) { return e.datasetIndex === 0; });
-            if (el) {
-              var raw = temps[el.index];
-              hoverReadout.textContent = raw.x + "  —  " + raw.y.toFixed(1) + " °C";
-              hoverReadout.classList.add("active");
-            }
-          } else {
-            hoverReadout.classList.remove("active");
-          }
-        },
+        events: [],
         plugins: {
           legend: { display: false },
           tooltip: { enabled: false }
