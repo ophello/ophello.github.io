@@ -18,7 +18,6 @@
     --rule: #d2cdc3;
     --muted: #807a6e;
     --accent: #c45d3e;
-    --accent-glow: #e8764f;
     --high: #c45d3e;
     --low: #3e7fa8;
     --select-bg: #fff;
@@ -37,7 +36,6 @@
     line-height: 1.6;
   }
 
-  /* ── TEXTURE ── */
   body::before {
     content: '';
     position: fixed;
@@ -55,7 +53,6 @@
     padding: 48px 32px 80px;
   }
 
-  /* ── HEADER ── */
   header {
     margin-bottom: 48px;
     border-bottom: 2px solid var(--ink);
@@ -68,7 +65,6 @@
     font-size: 2.4rem;
     letter-spacing: -0.02em;
     line-height: 1.15;
-    color: var(--ink);
   }
 
   header p {
@@ -78,7 +74,6 @@
     letter-spacing: 0.02em;
   }
 
-  /* ── CONTROLS ── */
   .controls {
     display: flex;
     flex-wrap: wrap;
@@ -121,7 +116,6 @@
   .field select:focus { outline: none; border-color: var(--accent); }
   .field select:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── GENERATE BUTTON ── */
   .btn-generate {
     align-self: flex-end;
     background: var(--ink);
@@ -142,7 +136,6 @@
   .btn-generate:active { transform: translateY(0); }
   .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-  /* ── STATUS ── */
   .status {
     margin-bottom: 24px;
     font-size: 13px;
@@ -171,7 +164,6 @@
     transition: width 0.3s ease;
   }
 
-  /* ── STATION INFO ── */
   .station-info {
     background: var(--warm);
     border: 1.5px solid var(--rule);
@@ -207,7 +199,6 @@
 
   .station-meta span:first-child::before { display: none; }
 
-  /* ── CHART ── */
   .chart-wrap {
     background: #fff;
     border: 1.5px solid var(--rule);
@@ -244,7 +235,6 @@
   .legend-dot.high { background: var(--high); }
   .legend-dot.low { background: var(--low); }
 
-  /* ── FOOTER ── */
   footer {
     margin-top: 56px;
     padding-top: 20px;
@@ -254,7 +244,6 @@
     letter-spacing: 0.02em;
   }
 
-  /* ── RESPONSIVE ── */
   @media (max-width: 640px) {
     .container { padding: 28px 16px 60px; }
     header h1 { font-size: 1.6rem; }
@@ -263,7 +252,6 @@
     .btn-generate { width: 100%; }
   }
 
-  /* ── LOADING ANIMATION ── */
   @keyframes pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
@@ -324,41 +312,42 @@
 <script>
 (function() {
   // ━━━ CONFIG ━━━
-  const API_TOKEN = "ENxLSyBnXKBfPBnzNlkomSAMEDgLbwYF";
-  const NOAA_BASE = "https://www.ncdc.noaa.gov/cdo-web/api/v2";
-  const CORS_PROXY = "https://corsproxy.io/?";
-  const API_BASE  = CORS_PROXY + encodeURIComponent(NOAA_BASE);
-  const DATASET   = "GSOM";
-  const DATA_TYPES = "TMAX,TMIN";
-  const START_DATE = "1980-01-01";
+  var API_TOKEN  = "ENxLSyBnXKBfPBnzNlkomSAMEDgLbwYF";
+  var NOAA_BASE  = "https://www.ncei.noaa.gov/cdo-web/api/v2";
+  var CORS_PROXY = "https://corsproxy.io/?";
+  var DATASET    = "GSOM";
+  var DATA_TYPES = "TMAX,TMIN";
+  var START_YEAR = 1980;
 
   // ━━━ DOM ━━━
-  const selState   = document.getElementById("sel-state");
-  const selCity    = document.getElementById("sel-city");
-  const selStation = document.getElementById("sel-station");
-  const btnGen     = document.getElementById("btn-gen");
-  const elStatus   = document.getElementById("status");
-  const elProgress = document.getElementById("progress");
-  const elFill     = document.getElementById("progress-fill");
-  const elInfo     = document.getElementById("station-info");
-  const elChart    = document.getElementById("chart-wrap");
+  var selState   = document.getElementById("sel-state");
+  var selCity    = document.getElementById("sel-city");
+  var selStation = document.getElementById("sel-station");
+  var btnGen     = document.getElementById("btn-gen");
+  var elStatus   = document.getElementById("status");
+  var elProgress = document.getElementById("progress");
+  var elFill     = document.getElementById("progress-fill");
+  var elInfo     = document.getElementById("station-info");
+  var elChart    = document.getElementById("chart-wrap");
 
-  let chart = null;
-  let stationsCache = {};
+  var chart = null;
+  var stationsCache = {};
 
   // ━━━ API HELPER ━━━
-  async function cdoFetch(endpoint, params = {}) {
-    const noaaUrl = new URL(NOAA_BASE + endpoint);
-    Object.entries(params).forEach(([k, v]) => {
+  async function cdoFetch(endpoint, params) {
+    params = params || {};
+    var noaaUrl = new URL(NOAA_BASE + endpoint);
+    Object.keys(params).forEach(function(k) {
+      var v = params[k];
       if (v !== undefined && v !== null && v !== "") noaaUrl.searchParams.set(k, String(v));
     });
-    const proxyUrl = CORS_PROXY + encodeURIComponent(noaaUrl.toString());
-    const res = await fetch(proxyUrl, {
+    var proxyUrl = CORS_PROXY + encodeURIComponent(noaaUrl.toString());
+    var res = await fetch(proxyUrl, {
       headers: { token: API_TOKEN }
     });
     if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`API error ${res.status}: ${txt || res.statusText}`);
+      var txt = await res.text().catch(function() { return ""; });
+      throw new Error("API error " + res.status + ": " + (txt || res.statusText));
     }
     return res.json();
   }
@@ -379,8 +368,8 @@
     elFill.style.width = "0%";
   }
 
-  // ━━━ US STATES (FIPS codes for CDO) ━━━
-  const US_STATES = [
+  // ━━━ US STATES (FIPS codes) ━━━
+  var US_STATES = [
     ["AL","Alabama","FIPS:01"],["AK","Alaska","FIPS:02"],["AZ","Arizona","FIPS:04"],
     ["AR","Arkansas","FIPS:05"],["CA","California","FIPS:06"],["CO","Colorado","FIPS:08"],
     ["CT","Connecticut","FIPS:09"],["DE","Delaware","FIPS:10"],["FL","Florida","FIPS:12"],
@@ -402,18 +391,16 @@
     ["VI","US Virgin Islands","FIPS:78"]
   ];
 
-  // Populate states
-  US_STATES.forEach(([abbr, name, fips]) => {
-    const opt = document.createElement("option");
-    opt.value = fips;
-    opt.textContent = name + " (" + abbr + ")";
+  US_STATES.forEach(function(s) {
+    var opt = document.createElement("option");
+    opt.value = s[2];
+    opt.textContent = s[1] + " (" + s[0] + ")";
     selState.appendChild(opt);
   });
 
-  // ━━━ STATE CHANGE → LOAD STATIONS → EXTRACT CITIES ━━━
+  // ━━━ STATE → LOAD STATIONS → GROUP BY CITY ━━━
   selState.addEventListener("change", async function() {
-    // Reset downstream
-    selCity.innerHTML = '<option value="">Loading cities…</option>';
+    selCity.innerHTML = '<option value="">Loading stations…</option>';
     selCity.disabled = true;
     selStation.innerHTML = '<option value="">Select a station…</option>';
     selStation.disabled = true;
@@ -421,7 +408,7 @@
     elInfo.classList.remove("visible");
     elChart.classList.remove("visible");
 
-    const fips = this.value;
+    var fips = this.value;
     if (!fips) {
       selCity.innerHTML = '<option value="">Select a city…</option>';
       return;
@@ -430,18 +417,15 @@
     setStatus("Loading stations for this state…");
 
     try {
-      // Fetch all GSOM stations in this state
-      let allStations = [];
-      let offset = 1;
-      const limit = 1000;
+      var allStations = [];
+      var offset = 1;
+      var limit = 1000;
 
       while (true) {
-        const data = await cdoFetch("/stations", {
+        var data = await cdoFetch("/stations", {
           datasetid: DATASET,
           locationid: fips,
           datatypeid: "TMAX",
-          startdate: START_DATE,
-          enddate: todayStr(),
           limit: limit,
           offset: offset,
           sortfield: "name"
@@ -449,7 +433,8 @@
 
         if (data.results && data.results.length > 0) {
           allStations = allStations.concat(data.results);
-          if (allStations.length >= (data.metadata?.resultset?.count || 0)) break;
+          var total = data.metadata && data.metadata.resultset ? data.metadata.resultset.count : 0;
+          if (allStations.length >= total) break;
           offset += limit;
         } else {
           break;
@@ -457,55 +442,46 @@
       }
 
       if (allStations.length === 0) {
-        setStatus("No stations with temperature data found in this state.", true);
+        setStatus("No stations with monthly temperature data found.", true);
         selCity.innerHTML = '<option value="">No cities found</option>';
         return;
       }
 
-      // Cache stations
       stationsCache = {};
-      const citySet = {};
 
-      allStations.forEach(s => {
-        // Extract city from station name (often "CITY NAME X.X X, ST")
-        // Station names vary, so we try to parse a useful city name
-        const name = s.name || "Unknown";
-        // Use a simple heuristic: take the portion before any number or comma pattern
-        let city = name.replace(/\s+\d[\d\.]*\s*(N|S|E|W|NE|NW|SE|SW)?\s*$/i, "")
+      allStations.forEach(function(s) {
+        var name = s.name || "Unknown";
+        var city = name.replace(/\s+\d[\d\.]*\s*(N|S|E|W|NE|NW|SE|SW)?\s*$/i, "")
                        .replace(/\s*,.*$/, "")
                        .replace(/\s+(AP|AIRPORT|ARPT|ASOS|AWOS|WSO|WFO|COOP|WBAN).*$/i, "")
                        .trim();
         if (!city) city = name;
+        city = city.replace(/\b\w/g, function(c) { return c.toUpperCase(); })
+                   .replace(/\b(Of|The|And|In|At|To|For)\b/g, function(w) { return w.toLowerCase(); });
 
-        // Title case
-        city = city.replace(/\b\w/g, c => c.toUpperCase())
-                   .replace(/\b(Of|The|And|In|At|To|For)\b/g, w => w.toLowerCase());
-
-        if (!citySet[city]) citySet[city] = [];
-        citySet[city].push(s);
+        if (!stationsCache[city]) stationsCache[city] = [];
+        stationsCache[city].push(s);
       });
 
-      stationsCache = citySet;
-
-      // Populate city dropdown
-      const cityNames = Object.keys(citySet).sort();
+      var cityNames = Object.keys(stationsCache).sort();
       selCity.innerHTML = '<option value="">Select a city… (' + cityNames.length + ' found)</option>';
-      cityNames.forEach(city => {
-        const opt = document.createElement("option");
+      cityNames.forEach(function(city) {
+        var opt = document.createElement("option");
         opt.value = city;
-        opt.textContent = city + " (" + citySet[city].length + " station" + (citySet[city].length > 1 ? "s" : "") + ")";
+        var n = stationsCache[city].length;
+        opt.textContent = city + " (" + n + " station" + (n > 1 ? "s" : "") + ")";
         selCity.appendChild(opt);
       });
 
       selCity.disabled = false;
-      setStatus(allStations.length + " stations loaded across " + cityNames.length + " cities.");
+      setStatus(allStations.length + " stations across " + cityNames.length + " cities.");
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
       selCity.innerHTML = '<option value="">Error</option>';
     }
   });
 
-  // ━━━ CITY CHANGE → POPULATE STATIONS ━━━
+  // ━━━ CITY → STATIONS ━━━
   selCity.addEventListener("change", function() {
     selStation.innerHTML = '<option value="">Select a station…</option>';
     selStation.disabled = true;
@@ -513,14 +489,13 @@
     elInfo.classList.remove("visible");
     elChart.classList.remove("visible");
 
-    const city = this.value;
+    var city = this.value;
     if (!city || !stationsCache[city]) return;
 
-    const stations = stationsCache[city];
-    stations.forEach(s => {
-      const opt = document.createElement("option");
+    stationsCache[city].forEach(function(s) {
+      var opt = document.createElement("option");
       opt.value = JSON.stringify(s);
-      const dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
+      var dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
       opt.textContent = s.name + " [" + dates + "]";
       selStation.appendChild(opt);
     });
@@ -529,7 +504,7 @@
     setStatus("");
   });
 
-  // ━━━ STATION CHANGE → ENABLE BUTTON ━━━
+  // ━━━ STATION → ENABLE BUTTON ━━━
   selStation.addEventListener("change", function() {
     btnGen.disabled = !this.value;
     elInfo.classList.remove("visible");
@@ -538,80 +513,95 @@
 
   // ━━━ GENERATE DATA ━━━
   btnGen.addEventListener("click", async function() {
-    const stationJson = selStation.value;
+    var stationJson = selStation.value;
     if (!stationJson) return;
 
-    const station = JSON.parse(stationJson);
+    var station = JSON.parse(stationJson);
     btnGen.disabled = true;
     selState.disabled = true;
     selCity.disabled = true;
     selStation.disabled = true;
 
-    // Determine date range
-    const earliest = station.mindate && station.mindate > START_DATE ? station.mindate : START_DATE;
-    const latest = todayStr();
-
-    // Show station info
     document.getElementById("info-name").textContent = station.name;
     document.getElementById("info-id").textContent = station.id;
     document.getElementById("info-elev").textContent = station.elevation != null
-      ? "Elev. " + station.elevation + " m"
-      : "";
-    document.getElementById("info-range").textContent = "Records: " + earliest + " → " + latest;
+      ? "Elev. " + station.elevation + " m" : "";
+    document.getElementById("info-range").textContent = "Records: " + (station.mindate || "?") + " → " + (station.maxdate || "?");
     elInfo.classList.add("visible");
 
     try {
-      setStatus("Fetching temperature data…");
+      setStatus("Fetching monthly temperature data…");
       showProgress(0);
 
-      // Paginate through all data
-      let allResults = [];
-      let offset = 1;
-      const limit = 1000;
-      let totalCount = null;
-
-      while (true) {
-        const data = await cdoFetch("/data", {
-          datasetid: DATASET,
-          stationid: station.id,
-          datatypeid: DATA_TYPES,
-          startdate: earliest,
-          enddate: latest,
-          units: "metric",
-          limit: limit,
-          offset: offset
+      // GSOM data endpoint: max 10-year range per request
+      var currentYear = new Date().getFullYear();
+      var chunks = [];
+      for (var y = START_YEAR; y <= currentYear; y += 10) {
+        var endY = Math.min(y + 9, currentYear);
+        chunks.push({
+          startdate: y + "-01-01",
+          enddate: endY + "-12-31"
         });
+      }
 
-        if (data.results && data.results.length > 0) {
-          allResults = allResults.concat(data.results);
-          if (totalCount === null) totalCount = data.metadata?.resultset?.count || 0;
-          const pct = Math.min(99, Math.round((allResults.length / totalCount) * 100));
-          showProgress(pct);
-          setStatus("Fetching temperature data… " + allResults.length.toLocaleString() + " / " + totalCount.toLocaleString() + " records");
+      var allResults = [];
+      var apiCalls = 0;
 
-          if (allResults.length >= totalCount) break;
-          offset += limit;
-        } else {
-          break;
+      for (var i = 0; i < chunks.length; i++) {
+        var chunk = chunks[i];
+        var pct = Math.round((i / chunks.length) * 100);
+        showProgress(pct);
+        setStatus("Fetching " + chunk.startdate.slice(0, 4) + "–" + chunk.enddate.slice(0, 4) +
+          "… (chunk " + (i + 1) + "/" + chunks.length + ")");
+
+        var offset = 1;
+        var limit = 1000;
+        var chunkTotal = null;
+
+        while (true) {
+          var data = await cdoFetch("/data", {
+            datasetid: DATASET,
+            stationid: station.id,
+            datatypeid: DATA_TYPES,
+            startdate: chunk.startdate,
+            enddate: chunk.enddate,
+            units: "metric",
+            limit: limit,
+            offset: offset
+          });
+          apiCalls++;
+
+          if (data.results && data.results.length > 0) {
+            allResults = allResults.concat(data.results);
+            if (chunkTotal === null && data.metadata && data.metadata.resultset) {
+              chunkTotal = data.metadata.resultset.count;
+            }
+            // Check if we've gotten all records for this chunk
+            var fetched = offset - 1 + data.results.length;
+            if (chunkTotal && fetched >= chunkTotal) break;
+            if (data.results.length < limit) break;
+            offset += limit;
+          } else {
+            break;
+          }
         }
       }
 
       showProgress(100);
 
       if (allResults.length === 0) {
-        setStatus("No temperature data found for this station in the date range.", true);
+        setStatus("No temperature data found for this station.", true);
         hideProgress();
         enableControls();
         return;
       }
 
-      // Parse into high/low arrays
-      const highs = [];
-      const lows = [];
+      var highs = [];
+      var lows = [];
 
-      allResults.forEach(r => {
-        const date = r.date.slice(0, 10);
-        const val = r.value; // already in °C from units=metric
+      allResults.forEach(function(r) {
+        var date = r.date.slice(0, 10);
+        var val = r.value;
         if (r.datatype === "TMAX") {
           highs.push({ x: date, y: val });
         } else if (r.datatype === "TMIN") {
@@ -620,13 +610,13 @@
       });
 
       setStatus(
-        "Loaded " + allResults.length.toLocaleString() + " records — " +
-        highs.length.toLocaleString() + " high temps, " +
-        lows.length.toLocaleString() + " low temps."
+        allResults.length.toLocaleString() + " records loaded — " +
+        highs.length.toLocaleString() + " monthly highs, " +
+        lows.length.toLocaleString() + " monthly lows. (" +
+        apiCalls + " API calls)"
       );
       hideProgress();
 
-      // Render chart
       renderChart(highs, lows, station.name);
 
     } catch (err) {
@@ -647,10 +637,9 @@
   // ━━━ CHART ━━━
   function renderChart(highs, lows, stationName) {
     elChart.classList.add("visible");
-
     if (chart) chart.destroy();
 
-    const ctx = document.getElementById("tempChart").getContext("2d");
+    var ctx = document.getElementById("tempChart").getContext("2d");
 
     chart = new Chart(ctx, {
       type: "line",
@@ -686,10 +675,7 @@
         responsive: true,
         maintainAspectRatio: true,
         aspectRatio: 2.5,
-        interaction: {
-          mode: "index",
-          intersect: false
-        },
+        interaction: { mode: "index", intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -700,11 +686,11 @@
             cornerRadius: 4,
             callbacks: {
               title: function(items) {
-                return items[0]?.raw?.x || "";
+                return items[0] && items[0].raw ? items[0].raw.x : "";
               },
-              label: function(context) {
-                const label = context.dataset.label.includes("High") ? "High" : "Low";
-                return label + ": " + context.raw.y.toFixed(1) + " °C";
+              label: function(ctx) {
+                var lbl = ctx.dataset.label.indexOf("High") >= 0 ? "High" : "Low";
+                return lbl + ": " + ctx.raw.y.toFixed(1) + " °C";
               }
             }
           }
@@ -717,10 +703,7 @@
               displayFormats: { year: "yyyy" },
               tooltipFormat: "MMM yyyy"
             },
-            grid: {
-              color: "rgba(0,0,0,0.04)",
-              drawTicks: false
-            },
+            grid: { color: "rgba(0,0,0,0.04)", drawTicks: false },
             ticks: {
               font: { family: "'DM Mono', monospace", size: 11 },
               color: "#807a6e",
@@ -735,10 +718,7 @@
               font: { family: "'DM Mono', monospace", size: 11, weight: 400 },
               color: "#807a6e"
             },
-            grid: {
-              color: "rgba(0,0,0,0.04)",
-              drawTicks: false
-            },
+            grid: { color: "rgba(0,0,0,0.04)", drawTicks: false },
             ticks: {
               font: { family: "'DM Mono', monospace", size: 11 },
               color: "#807a6e",
@@ -751,16 +731,7 @@
       }
     });
 
-    // Scroll to chart
     elChart.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  // ━━━ HELPERS ━━━
-  function todayStr() {
-    const d = new Date();
-    return d.getFullYear() + "-" +
-      String(d.getMonth() + 1).padStart(2, "0") + "-" +
-      String(d.getDate()).padStart(2, "0");
   }
 
 })();
