@@ -308,7 +308,7 @@
   <pre id="debug-output" style="display:none; background:#fff; border:1.5px solid var(--rule); border-radius:var(--radius); padding:16px; margin-top:24px; font-family:var(--font-mono); font-size:11px; color:var(--ink); white-space:pre-wrap; max-height:400px; overflow-y:auto;"></pre>
 
   <footer>
-    v1.8
+    v1.9
   </footer>
 
 </div>
@@ -843,14 +843,48 @@
     };
   }
 
+  // ━━━ FIND LONGEST UNBROKEN STRETCH (gap threshold: 60 months / 5 years) ━━━
+  function findLongestStretch(data) {
+    if (data.length <= 1) return data;
+    var GAP_THRESHOLD_DAYS = 5 * 365; // ~5 years in days
+    var stretches = [];
+    var currentStretch = [data[0]];
+
+    for (var i = 1; i < data.length; i++) {
+      var prevDate = new Date(data[i - 1].x).getTime();
+      var currDate = new Date(data[i].x).getTime();
+      var gapDays = (currDate - prevDate) / (1000 * 60 * 60 * 24);
+
+      if (gapDays > GAP_THRESHOLD_DAYS) {
+        stretches.push(currentStretch);
+        currentStretch = [data[i]];
+      } else {
+        currentStretch.push(data[i]);
+      }
+    }
+    stretches.push(currentStretch);
+
+    // Return the longest stretch
+    var longest = stretches[0];
+    for (var j = 1; j < stretches.length; j++) {
+      if (stretches[j].length > longest.length) {
+        longest = stretches[j];
+      }
+    }
+    return longest;
+  }
+
   // ━━━ CHART ━━━
   function renderChart(temps, stationName) {
     elChart.classList.add("visible");
     if (chart) chart.destroy();
 
-    // Compute trendline
-    var reg = linearRegression(temps);
-    var trendLabel = "Trend in temp since 1970: " +
+    // Find longest unbroken stretch for trendline
+    var trendData = findLongestStretch(temps);
+
+    // Compute trendline on longest stretch only
+    var reg = linearRegression(trendData);
+    var trendLabel = "Trend in temp since " + trendData[0].x.slice(0, 4) + ": " +
       (reg.totalChange >= 0 ? "+" : "") +
       reg.totalChange.toFixed(2) + " °C";
 
