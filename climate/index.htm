@@ -305,8 +305,6 @@
     </div>
   </div>
 
-  <pre id="debug-output" style="display:none; background:#fff; border:1.5px solid var(--rule); border-radius:var(--radius); padding:16px; margin-top:24px; font-family:var(--font-mono); font-size:11px; color:var(--ink); white-space:pre-wrap; max-height:400px; overflow-y:auto;"></pre>
-
   <footer>
     v1.9
   </footer>
@@ -578,31 +576,7 @@
       });
 
       selCity.disabled = false;
-
-      // DEBUG: show all parsed city names and match results
-      var allParsed = Object.keys(stationsCache).sort();
-      var matched = cityNames.slice();
-      var unmatched = allParsed.filter(function(c) { return matched.indexOf(c) === -1; });
-      console.log("=== DEBUG: City matching for " + currentFips + " ===");
-      console.log("Top list:", topList);
-      console.log("Matched (" + matched.length + "):", matched);
-      console.log("Unmatched (" + unmatched.length + "):", unmatched);
-      console.log("All parsed (" + allParsed.length + "):", allParsed);
-      // Also show raw station names grouped by parsed city
-      var debugLines = ["── TOP LIST: " + topList.join(", ") + " ──\n"];
-      debugLines.push("✓ MATCHED (" + matched.length + "): " + matched.join(", ") + "\n");
-      debugLines.push("✗ UNMATCHED (" + unmatched.length + "): " + unmatched.join(", ") + "\n");
-      debugLines.push("\n── RAW STATION NAMES BY PARSED CITY ──");
-      allParsed.forEach(function(city) {
-        var names = stationsCache[city].map(function(s) { return s.name; });
-        debugLines.push(city + ": " + names.join(" | "));
-      });
-      setStatus("DEBUG — see below. " + allStations.length + " stations, " + allParsed.length + " parsed cities, " + matched.length + " matched top 3.");
-      var debugEl = document.getElementById("debug-output");
-      if (debugEl) {
-        debugEl.textContent = debugLines.join("\n");
-        debugEl.style.display = "block";
-      }
+      setStatus(allStations.length + " stations across " + cityNames.length + " cities.");
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
       selCity.innerHTML = '<option value="">Error</option>';
@@ -904,18 +878,33 @@
 
     var ctx = document.getElementById("tempChart").getContext("2d");
 
+    // Insert null points where gaps > 45 days to break the line
+    var tempsWithGaps = [];
+    for (var gi = 0; gi < temps.length; gi++) {
+      if (gi > 0) {
+        var prevDate = new Date(temps[gi - 1].x).getTime();
+        var currDate = new Date(temps[gi].x).getTime();
+        var gapDays = (currDate - prevDate) / (1000 * 60 * 60 * 24);
+        if (gapDays > 45) {
+          tempsWithGaps.push({ x: temps[gi].x, y: null });
+        }
+      }
+      tempsWithGaps.push(temps[gi]);
+    }
+
     chart = new Chart(ctx, {
       type: "line",
       data: {
         datasets: [
           {
             label: "Avg Temperature (°C)",
-            data: temps,
+            data: tempsWithGaps,
             borderColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
             backgroundColor: "rgba(196, 93, 62, 0.08)",
             borderWidth: 1.5,
             pointRadius: 0,
             pointHitRadius: 0,
+            spanGaps: false,
             fill: true,
             tension: 0.3,
             order: 2
