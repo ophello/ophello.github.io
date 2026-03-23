@@ -328,7 +328,7 @@
   </div>
 
   <footer>
-    v1.6 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
+    v1.7 — Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
   </footer>
 
 </div>
@@ -421,6 +421,66 @@
     selState.appendChild(opt);
   });
 
+  // ━━━ TOP 3 CITIES PER STATE BY POPULATION ━━━
+  // Used to sort city dropdowns — matched case-insensitively against parsed city names
+  // Key: FIPS code, Value: [1st, 2nd, 3rd] largest cities
+  var TOP_CITIES = {
+    "FIPS:01": ["Birmingham", "Montgomery", "Huntsville"],
+    "FIPS:02": ["Anchorage", "Fairbanks", "Juneau"],
+    "FIPS:04": ["Phoenix", "Tucson", "Mesa"],
+    "FIPS:05": ["Little Rock", "Fort Smith", "Fayetteville"],
+    "FIPS:06": ["Los Angeles", "San Diego", "San Jose"],
+    "FIPS:08": ["Denver", "Colorado Springs", "Aurora"],
+    "FIPS:09": ["Bridgeport", "New Haven", "Hartford"],
+    "FIPS:10": ["Wilmington", "Dover", "Newark"],
+    "FIPS:11": ["Washington"],
+    "FIPS:12": ["Jacksonville", "Miami", "Tampa"],
+    "FIPS:13": ["Atlanta", "Augusta", "Columbus"],
+    "FIPS:15": ["Honolulu", "Hilo", "Kailua"],
+    "FIPS:16": ["Boise", "Meridian", "Nampa"],
+    "FIPS:17": ["Chicago", "Aurora", "Joliet"],
+    "FIPS:18": ["Indianapolis", "Fort Wayne", "Evansville"],
+    "FIPS:19": ["Des Moines", "Cedar Rapids", "Davenport"],
+    "FIPS:20": ["Wichita", "Overland Park", "Kansas City"],
+    "FIPS:21": ["Louisville", "Lexington", "Bowling Green"],
+    "FIPS:22": ["New Orleans", "Baton Rouge", "Shreveport"],
+    "FIPS:23": ["Portland", "Lewiston", "Bangor"],
+    "FIPS:24": ["Baltimore", "Columbia", "Germantown"],
+    "FIPS:25": ["Boston", "Worcester", "Springfield"],
+    "FIPS:26": ["Detroit", "Grand Rapids", "Warren"],
+    "FIPS:27": ["Minneapolis", "Saint Paul", "Rochester"],
+    "FIPS:28": ["Jackson", "Gulfport", "Southaven"],
+    "FIPS:29": ["Kansas City", "Saint Louis", "Springfield"],
+    "FIPS:30": ["Billings", "Missoula", "Great Falls"],
+    "FIPS:31": ["Omaha", "Lincoln", "Bellevue"],
+    "FIPS:32": ["Las Vegas", "Henderson", "Reno"],
+    "FIPS:33": ["Manchester", "Nashua", "Concord"],
+    "FIPS:34": ["Newark", "Jersey City", "Paterson"],
+    "FIPS:35": ["Albuquerque", "Las Cruces", "Rio Rancho"],
+    "FIPS:36": ["New York", "Buffalo", "Rochester"],
+    "FIPS:37": ["Charlotte", "Raleigh", "Greensboro"],
+    "FIPS:38": ["Fargo", "Bismarck", "Grand Forks"],
+    "FIPS:39": ["Columbus", "Cleveland", "Cincinnati"],
+    "FIPS:40": ["Oklahoma City", "Tulsa", "Norman"],
+    "FIPS:41": ["Portland", "Salem", "Eugene"],
+    "FIPS:42": ["Philadelphia", "Pittsburgh", "Allentown"],
+    "FIPS:44": ["Providence", "Warwick", "Cranston"],
+    "FIPS:45": ["Charleston", "Columbia", "North Charleston"],
+    "FIPS:46": ["Sioux Falls", "Rapid City", "Aberdeen"],
+    "FIPS:47": ["Nashville", "Memphis", "Knoxville"],
+    "FIPS:48": ["Houston", "San Antonio", "Dallas"],
+    "FIPS:49": ["Salt Lake City", "West Valley City", "Provo"],
+    "FIPS:50": ["Burlington", "South Burlington", "Rutland"],
+    "FIPS:51": ["Virginia Beach", "Norfolk", "Chesapeake"],
+    "FIPS:53": ["Seattle", "Spokane", "Tacoma"],
+    "FIPS:54": ["Charleston", "Huntington", "Morgantown"],
+    "FIPS:55": ["Milwaukee", "Madison", "Green Bay"],
+    "FIPS:56": ["Cheyenne", "Casper", "Laramie"],
+    "FIPS:72": ["San Juan", "Bayamon", "Carolina"],
+    "FIPS:78": ["Charlotte Amalie", "Christiansted", "Frederiksted"]
+  };
+  var currentFips = "";
+
   // ━━━ STATE → LOAD ALL STATIONS, GROUP BY CITY ━━━
   var stationsCache = {};
 
@@ -435,6 +495,7 @@
     stationsCache = {};
 
     var fips = this.value;
+    currentFips = fips;
     if (!fips) {
       selCity.innerHTML = '<option value="">Select a city…</option>';
       return;
@@ -501,18 +562,25 @@
         stationsCache[city].push(s);
       });
 
-      // Sort cities: by station count descending, then alphabetical
-      var cityNames = Object.keys(stationsCache).sort(function(a, b) {
-        var countDiff = stationsCache[b].length - stationsCache[a].length;
-        if (countDiff !== 0) return countDiff;
-        return a.localeCompare(b);
+      // Only show top 3 cities by population for this state
+      var topList = (TOP_CITIES[currentFips] || []).map(function(c) { return c.toUpperCase(); });
+      var cityNames = Object.keys(stationsCache).filter(function(city) {
+        return topList.indexOf(city.toUpperCase()) !== -1;
+      }).sort(function(a, b) {
+        return topList.indexOf(a.toUpperCase()) - topList.indexOf(b.toUpperCase());
       });
 
-      selCity.innerHTML = '<option value="">Select a city… (' + cityNames.length + ' cities)</option>';
+      if (cityNames.length === 0) {
+        setStatus("No qualifying stations found in the top cities for this state.", true);
+        selCity.innerHTML = '<option value="">No cities found</option>';
+        return;
+      }
+
+      selCity.innerHTML = '<option value="">Select a city… (' + cityNames.length + ')</option>';
       cityNames.forEach(function(city) {
         var opt = document.createElement("option");
         opt.value = city;
-        opt.textContent = city + " (" + stationsCache[city].length + ")";
+        opt.textContent = city;
         selCity.appendChild(opt);
       });
 
