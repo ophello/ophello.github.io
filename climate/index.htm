@@ -1,1 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Climate Data Explorer — NOAA CDO</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+  :root {
+    --ink: #1b1e2a;
+    --paper: #f3f0e8;
+    --warm: #faf8f3;
+    --rule: #d2cdc3;
+    --muted: #807a6e;
+    --accent: #c45d3e;
+    --accent-glow: #e8764f;
+    --high: #c45d3e;
+    --low: #3e7fa8;
+    --select-bg: #fff;
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-mono: 'DM Mono', 'Courier New', monospace;
+    --radius: 6px;
+  }
+
+  body {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 14px;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    margin-bottom: 48px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 24px;
+  }
+
+  header h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 2.4rem;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+
+  header p {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    margin-bottom: 40px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .field label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .field select {
+    appearance: none;
+    background: var(--select-bg) url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23807a6e'/%3E%3C/svg%3E") no-repeat right 12px center;
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 10px 36px 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .field select:hover { border-color: var(--muted); }
+  .field select:focus { outline: none; border-color: var(--accent); }
+  .field select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── GENERATE BUTTON ── */
+  .btn-generate {
+    align-self: flex-end;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: var(--radius);
+    padding: 10px 28px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+
+  .btn-generate:hover { background: #2d3147; transform: translateY(-1px); }
+  .btn-generate:active { transform: translateY(0); }
+  .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── STATUS ── */
+  .status {
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 20px;
+  }
+
+  .status.error { color: var(--accent); }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--rule);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-bar.active { display: block; }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* ── STATION INFO ── */
+  .station-info {
+    background: var(--warm);
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    display: none;
+  }
+
+  .station-info.visible { display: block; }
+
+  .station-info h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+
+  .station-meta {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .station-meta span::before {
+    content: '·';
+    margin-right: 6px;
+    color: var(--rule);
+  }
+
+  .station-meta span:first-child::before { display: none; }
+
+  /* ── CHART ── */
+  .chart-wrap {
+    background: #fff;
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 28px 24px 20px;
+    display: none;
+  }
+
+  .chart-wrap.visible { display: block; }
+
+  .chart-wrap canvas { width: 100% !important; }
+
+  .chart-legend {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-bottom: 16px;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+
+  .chart-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .legend-dot.high { background: var(--high); }
+  .legend-dot.low { background: var(--low); }
+
+  /* ── FOOTER ── */
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .container { padding: 28px 16px 60px; }
+    header h1 { font-size: 1.6rem; }
+    .controls { flex-direction: column; }
+    .field { min-width: 100%; }
+    .btn-generate { width: 100%; }
+  }
+
+  /* ── LOADING ANIMATION ── */
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  .loading { animation: pulse 1.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Climate Data Explorer</h1>
+    <p>Monthly temperature records from NOAA's Climate Data Online — 1980 to present</p>
+  </header>
+
+  <div class="controls">
+    <div class="field">
+      <label for="sel-state">State</label>
+      <select id="sel-state"><option value="">Select a state…</option></select>
+    </div>
+    <div class="field">
+      <label for="sel-city">City</label>
+      <select id="sel-city" disabled><option value="">Select a city…</option></select>
+    </div>
+    <div class="field">
+      <label for="sel-station">Station</label>
+      <select id="sel-station" disabled><option value="">Select a station…</option></select>
+    </div>
+    <button class="btn-generate" id="btn-gen" disabled>Generate Data</button>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div class="progress-bar" id="progress"><div class="progress-bar-fill" id="progress-fill"></div></div>
+
+  <div class="station-info" id="station-info">
+    <h2 id="info-name"></h2>
+    <div class="station-meta">
+      <span id="info-id"></span>
+      <span id="info-elev"></span>
+      <span id="info-range"></span>
+    </div>
+  </div>
+
+  <div class="chart-wrap" id="chart-wrap">
+    <div class="chart-legend">
+      <span><span class="legend-dot high"></span>Monthly High (°C)</span>
+      <span><span class="legend-dot low"></span>Monthly Low (°C)</span>
+    </div>
+    <canvas id="tempChart"></canvas>
+  </div>
+
+  <footer>
+    Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2
+  </footer>
+
+</div>
+
+<script>
+(function() {
+  // ━━━ CONFIG ━━━
+  const API_TOKEN = "ENxLSyBnXKBfPBnzNlkomSAMEDgLbwYF";
+  const API_BASE  = "https://www.ncdc.noaa.gov/cdo-web/api/v2";
+  const DATASET   = "GSOM";
+  const DATA_TYPES = "TMAX,TMIN";
+  const START_DATE = "1980-01-01";
+
+  // ━━━ DOM ━━━
+  const selState   = document.getElementById("sel-state");
+  const selCity    = document.getElementById("sel-city");
+  const selStation = document.getElementById("sel-station");
+  const btnGen     = document.getElementById("btn-gen");
+  const elStatus   = document.getElementById("status");
+  const elProgress = document.getElementById("progress");
+  const elFill     = document.getElementById("progress-fill");
+  const elInfo     = document.getElementById("station-info");
+  const elChart    = document.getElementById("chart-wrap");
+
+  let chart = null;
+  let stationsCache = {};
+
+  // ━━━ API HELPER ━━━
+  async function cdoFetch(endpoint, params = {}) {
+    const url = new URL(API_BASE + endpoint);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+    });
+    const res = await fetch(url.toString(), {
+      headers: { token: API_TOKEN }
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`API error ${res.status}: ${txt || res.statusText}`);
+    }
+    return res.json();
+  }
+
+  // ━━━ STATUS HELPERS ━━━
+  function setStatus(msg, isError) {
+    elStatus.textContent = msg;
+    elStatus.className = "status" + (isError ? " error" : "");
+  }
+
+  function showProgress(pct) {
+    elProgress.classList.add("active");
+    elFill.style.width = pct + "%";
+  }
+
+  function hideProgress() {
+    elProgress.classList.remove("active");
+    elFill.style.width = "0%";
+  }
+
+  // ━━━ US STATES (FIPS codes for CDO) ━━━
+  const US_STATES = [
+    ["AL","Alabama","FIPS:01"],["AK","Alaska","FIPS:02"],["AZ","Arizona","FIPS:04"],
+    ["AR","Arkansas","FIPS:05"],["CA","California","FIPS:06"],["CO","Colorado","FIPS:08"],
+    ["CT","Connecticut","FIPS:09"],["DE","Delaware","FIPS:10"],["FL","Florida","FIPS:12"],
+    ["GA","Georgia","FIPS:13"],["HI","Hawaii","FIPS:15"],["ID","Idaho","FIPS:16"],
+    ["IL","Illinois","FIPS:17"],["IN","Indiana","FIPS:18"],["IA","Iowa","FIPS:19"],
+    ["KS","Kansas","FIPS:20"],["KY","Kentucky","FIPS:21"],["LA","Louisiana","FIPS:22"],
+    ["ME","Maine","FIPS:23"],["MD","Maryland","FIPS:24"],["MA","Massachusetts","FIPS:25"],
+    ["MI","Michigan","FIPS:26"],["MN","Minnesota","FIPS:27"],["MS","Mississippi","FIPS:28"],
+    ["MO","Missouri","FIPS:29"],["MT","Montana","FIPS:30"],["NE","Nebraska","FIPS:31"],
+    ["NV","Nevada","FIPS:32"],["NH","New Hampshire","FIPS:33"],["NJ","New Jersey","FIPS:34"],
+    ["NM","New Mexico","FIPS:35"],["NY","New York","FIPS:36"],["NC","North Carolina","FIPS:37"],
+    ["ND","North Dakota","FIPS:38"],["OH","Ohio","FIPS:39"],["OK","Oklahoma","FIPS:40"],
+    ["OR","Oregon","FIPS:41"],["PA","Pennsylvania","FIPS:42"],["RI","Rhode Island","FIPS:44"],
+    ["SC","South Carolina","FIPS:45"],["SD","South Dakota","FIPS:46"],["TN","Tennessee","FIPS:47"],
+    ["TX","Texas","FIPS:48"],["UT","Utah","FIPS:49"],["VT","Vermont","FIPS:50"],
+    ["VA","Virginia","FIPS:51"],["WA","Washington","FIPS:53"],["WV","West Virginia","FIPS:54"],
+    ["WI","Wisconsin","FIPS:55"],["WY","Wyoming","FIPS:56"],
+    ["DC","District of Columbia","FIPS:11"],["PR","Puerto Rico","FIPS:72"],
+    ["VI","US Virgin Islands","FIPS:78"]
+  ];
+
+  // Populate states
+  US_STATES.forEach(([abbr, name, fips]) => {
+    const opt = document.createElement("option");
+    opt.value = fips;
+    opt.textContent = name + " (" + abbr + ")";
+    selState.appendChild(opt);
+  });
+
+  // ━━━ STATE CHANGE → LOAD STATIONS → EXTRACT CITIES ━━━
+  selState.addEventListener("change", async function() {
+    // Reset downstream
+    selCity.innerHTML = '<option value="">Loading cities…</option>';
+    selCity.disabled = true;
+    selStation.innerHTML = '<option value="">Select a station…</option>';
+    selStation.disabled = true;
+    btnGen.disabled = true;
+    elInfo.classList.remove("visible");
+    elChart.classList.remove("visible");
+
+    const fips = this.value;
+    if (!fips) {
+      selCity.innerHTML = '<option value="">Select a city…</option>';
+      return;
+    }
+
+    setStatus("Loading stations for this state…");
+
+    try {
+      // Fetch all GSOM stations in this state
+      let allStations = [];
+      let offset = 1;
+      const limit = 1000;
+
+      while (true) {
+        const data = await cdoFetch("/stations", {
+          datasetid: DATASET,
+          locationid: fips,
+          datatypeid: "TMAX",
+          startdate: START_DATE,
+          enddate: todayStr(),
+          limit: limit,
+          offset: offset,
+          sortfield: "name"
+        });
+
+        if (data.results && data.results.length > 0) {
+          allStations = allStations.concat(data.results);
+          if (allStations.length >= (data.metadata?.resultset?.count || 0)) break;
+          offset += limit;
+        } else {
+          break;
+        }
+      }
+
+      if (allStations.length === 0) {
+        setStatus("No stations with temperature data found in this state.", true);
+        selCity.innerHTML = '<option value="">No cities found</option>';
+        return;
+      }
+
+      // Cache stations
+      stationsCache = {};
+      const citySet = {};
+
+      allStations.forEach(s => {
+        // Extract city from station name (often "CITY NAME X.X X, ST")
+        // Station names vary, so we try to parse a useful city name
+        const name = s.name || "Unknown";
+        // Use a simple heuristic: take the portion before any number or comma pattern
+        let city = name.replace(/\s+\d[\d\.]*\s*(N|S|E|W|NE|NW|SE|SW)?\s*$/i, "")
+                       .replace(/\s*,.*$/, "")
+                       .replace(/\s+(AP|AIRPORT|ARPT|ASOS|AWOS|WSO|WFO|COOP|WBAN).*$/i, "")
+                       .trim();
+        if (!city) city = name;
+
+        // Title case
+        city = city.replace(/\b\w/g, c => c.toUpperCase())
+                   .replace(/\b(Of|The|And|In|At|To|For)\b/g, w => w.toLowerCase());
+
+        if (!citySet[city]) citySet[city] = [];
+        citySet[city].push(s);
+      });
+
+      stationsCache = citySet;
+
+      // Populate city dropdown
+      const cityNames = Object.keys(citySet).sort();
+      selCity.innerHTML = '<option value="">Select a city… (' + cityNames.length + ' found)</option>';
+      cityNames.forEach(city => {
+        const opt = document.createElement("option");
+        opt.value = city;
+        opt.textContent = city + " (" + citySet[city].length + " station" + (citySet[city].length > 1 ? "s" : "") + ")";
+        selCity.appendChild(opt);
+      });
+
+      selCity.disabled = false;
+      setStatus(allStations.length + " stations loaded across " + cityNames.length + " cities.");
+    } catch (err) {
+      setStatus("Error loading stations: " + err.message, true);
+      selCity.innerHTML = '<option value="">Error</option>';
+    }
+  });
+
+  // ━━━ CITY CHANGE → POPULATE STATIONS ━━━
+  selCity.addEventListener("change", function() {
+    selStation.innerHTML = '<option value="">Select a station…</option>';
+    selStation.disabled = true;
+    btnGen.disabled = true;
+    elInfo.classList.remove("visible");
+    elChart.classList.remove("visible");
+
+    const city = this.value;
+    if (!city || !stationsCache[city]) return;
+
+    const stations = stationsCache[city];
+    stations.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = JSON.stringify(s);
+      const dates = (s.mindate || "").slice(0, 4) + "–" + (s.maxdate || "").slice(0, 4);
+      opt.textContent = s.name + " [" + dates + "]";
+      selStation.appendChild(opt);
+    });
+
+    selStation.disabled = false;
+    setStatus("");
+  });
+
+  // ━━━ STATION CHANGE → ENABLE BUTTON ━━━
+  selStation.addEventListener("change", function() {
+    btnGen.disabled = !this.value;
+    elInfo.classList.remove("visible");
+    elChart.classList.remove("visible");
+  });
+
+  // ━━━ GENERATE DATA ━━━
+  btnGen.addEventListener("click", async function() {
+    const stationJson = selStation.value;
+    if (!stationJson) return;
+
+    const station = JSON.parse(stationJson);
+    btnGen.disabled = true;
+    selState.disabled = true;
+    selCity.disabled = true;
+    selStation.disabled = true;
+
+    // Determine date range
+    const earliest = station.mindate && station.mindate > START_DATE ? station.mindate : START_DATE;
+    const latest = todayStr();
+
+    // Show station info
+    document.getElementById("info-name").textContent = station.name;
+    document.getElementById("info-id").textContent = station.id;
+    document.getElementById("info-elev").textContent = station.elevation != null
+      ? "Elev. " + station.elevation + " m"
+      : "";
+    document.getElementById("info-range").textContent = "Records: " + earliest + " → " + latest;
+    elInfo.classList.add("visible");
+
+    try {
+      setStatus("Fetching temperature data…");
+      showProgress(0);
+
+      // Paginate through all data
+      let allResults = [];
+      let offset = 1;
+      const limit = 1000;
+      let totalCount = null;
+
+      while (true) {
+        const data = await cdoFetch("/data", {
+          datasetid: DATASET,
+          stationid: station.id,
+          datatypeid: DATA_TYPES,
+          startdate: earliest,
+          enddate: latest,
+          units: "metric",
+          limit: limit,
+          offset: offset
+        });
+
+        if (data.results && data.results.length > 0) {
+          allResults = allResults.concat(data.results);
+          if (totalCount === null) totalCount = data.metadata?.resultset?.count || 0;
+          const pct = Math.min(99, Math.round((allResults.length / totalCount) * 100));
+          showProgress(pct);
+          setStatus("Fetching temperature data… " + allResults.length.toLocaleString() + " / " + totalCount.toLocaleString() + " records");
+
+          if (allResults.length >= totalCount) break;
+          offset += limit;
+        } else {
+          break;
+        }
+      }
+
+      showProgress(100);
+
+      if (allResults.length === 0) {
+        setStatus("No temperature data found for this station in the date range.", true);
+        hideProgress();
+        enableControls();
+        return;
+      }
+
+      // Parse into high/low arrays
+      const highs = [];
+      const lows = [];
+
+      allResults.forEach(r => {
+        const date = r.date.slice(0, 10);
+        const val = r.value; // already in °C from units=metric
+        if (r.datatype === "TMAX") {
+          highs.push({ x: date, y: val });
+        } else if (r.datatype === "TMIN") {
+          lows.push({ x: date, y: val });
+        }
+      });
+
+      setStatus(
+        "Loaded " + allResults.length.toLocaleString() + " records — " +
+        highs.length.toLocaleString() + " high temps, " +
+        lows.length.toLocaleString() + " low temps."
+      );
+      hideProgress();
+
+      // Render chart
+      renderChart(highs, lows, station.name);
+
+    } catch (err) {
+      setStatus("Error fetching data: " + err.message, true);
+      hideProgress();
+    }
+
+    enableControls();
+  });
+
+  function enableControls() {
+    selState.disabled = false;
+    selCity.disabled = false;
+    selStation.disabled = false;
+    btnGen.disabled = false;
+  }
+
+  // ━━━ CHART ━━━
+  function renderChart(highs, lows, stationName) {
+    elChart.classList.add("visible");
+
+    if (chart) chart.destroy();
+
+    const ctx = document.getElementById("tempChart").getContext("2d");
+
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: "Monthly High (°C)",
+            data: highs,
+            borderColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
+            backgroundColor: "rgba(196, 93, 62, 0.08)",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHitRadius: 6,
+            fill: false,
+            tension: 0.3,
+            order: 1
+          },
+          {
+            label: "Monthly Low (°C)",
+            data: lows,
+            borderColor: getComputedStyle(document.documentElement).getPropertyValue("--low").trim(),
+            backgroundColor: "rgba(62, 127, 168, 0.08)",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHitRadius: 6,
+            fill: false,
+            tension: 0.3,
+            order: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2.5,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#1b1e2a",
+            titleFont: { family: "'DM Mono', monospace", size: 12 },
+            bodyFont: { family: "'DM Mono', monospace", size: 12 },
+            padding: 12,
+            cornerRadius: 4,
+            callbacks: {
+              title: function(items) {
+                return items[0]?.raw?.x || "";
+              },
+              label: function(context) {
+                const label = context.dataset.label.includes("High") ? "High" : "Low";
+                return label + ": " + context.raw.y.toFixed(1) + " °C";
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: "time",
+            time: {
+              unit: "year",
+              displayFormats: { year: "yyyy" },
+              tooltipFormat: "MMM yyyy"
+            },
+            grid: {
+              color: "rgba(0,0,0,0.04)",
+              drawTicks: false
+            },
+            ticks: {
+              font: { family: "'DM Mono', monospace", size: 11 },
+              color: "#807a6e",
+              padding: 8
+            },
+            border: { color: "#d2cdc3" }
+          },
+          y: {
+            title: {
+              display: true,
+              text: "Temperature (°C)",
+              font: { family: "'DM Mono', monospace", size: 11, weight: 400 },
+              color: "#807a6e"
+            },
+            grid: {
+              color: "rgba(0,0,0,0.04)",
+              drawTicks: false
+            },
+            ticks: {
+              font: { family: "'DM Mono', monospace", size: 11 },
+              color: "#807a6e",
+              padding: 8,
+              callback: function(val) { return val + "°"; }
+            },
+            border: { color: "#d2cdc3" }
+          }
+        }
+      }
+    });
+
+    // Scroll to chart
+    elChart.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // ━━━ HELPERS ━━━
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+
+})();
+</script>
+</body>
+</html>
