@@ -90,6 +90,11 @@
     min-width: 180px;
   }
 
+  .field-state {
+    flex: 0 0 20vw;
+    min-width: 140px;
+  }
+
   .field label {
     font-size: 11px;
     text-transform: uppercase;
@@ -281,7 +286,7 @@
   </header>
 
   <div class="controls">
-    <div class="field">
+    <div class="field field-state">
       <label for="sel-state">State</label>
       <select id="sel-state"><option value="">Select a state…</option></select>
     </div>
@@ -315,7 +320,7 @@
           <span><span class="legend-dot high"></span>Monthly Avg Temperature (°C)</span>
           <span><span class="legend-dot trend"></span>Linear Trend</span>
         </div>
-        <div id="trend-info" style="display:none; font-size:13px; margin-top:12px; color:var(--ink); font-weight:500;"></div>
+        <div id="trend-info" style="display:none; font-size:11px; margin-top:12px; color:var(--ink); font-weight:500;"></div>
       </div>
       <div class="chart-main">
         <canvas id="tempChart"></canvas>
