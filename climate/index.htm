@@ -313,7 +313,7 @@
           <div style="font-size:11px; color:var(--muted); margin-top:8px;">Data source: NOAA National Centers for Environmental Information, Climate Data Online (CDO) API v2</div>
         </div>
         <div class="chart-legend">
-          <span><span class="legend-dot high"></span>Monthly Avg Temperature (°C)</span>
+          <span><span class="legend-dot high"></span>Monthly Avg Temp — (TMAX+TMIN)/2</span>
           <span><span class="legend-dot trend"></span>Linear Trend</span>
         </div>
         <div id="trend-info" style="display:none; font-size:11px; margin-top:12px; color:var(--ink); font-weight:500;"></div>
@@ -325,7 +325,7 @@
   </div>
 
   <footer>
-    v1.3
+    v1.4
   </footer>
 
 </div>
@@ -337,7 +337,7 @@
   var NOAA_BASE  = "https://www.ncei.noaa.gov/cdo-web/api/v2";
   var CORS_PROXY = "https://corsproxy.io/?";
   var DATASET    = "GSOM";
-  var DATA_TYPES = "TAVG,TMAX";
+  var DATA_TYPES = "TMAX,TMIN";
   var START_YEAR = 1970;
 
   // ━━━ DOM ━━━
@@ -691,44 +691,33 @@
         return;
       }
 
-      // Build a map keyed by date (YYYY-MM), preferring TAVG over TMAX
-      var tempByMonth = {};
-      var usedTavg = 0;
-      var usedTmax = 0;
+      // Build maps of TMAX and TMIN keyed by YYYY-MM
+      var tmaxByMonth = {};
+      var tminByMonth = {};
 
       allResults.forEach(function(r) {
-        var dateKey = r.date.slice(0, 7); // YYYY-MM
-        if (r.datatype === "TAVG") {
-          tempByMonth[dateKey] = { x: r.date.slice(0, 10), y: r.value, type: "TAVG" };
-        } else if (r.datatype === "TMAX") {
-          // Only use TMAX if we don't already have TAVG for this month
-          if (!tempByMonth[dateKey] || tempByMonth[dateKey].type !== "TAVG") {
-            tempByMonth[dateKey] = { x: r.date.slice(0, 10), y: r.value, type: "TMAX" };
-          }
+        var dateKey = r.date.slice(0, 7);
+        var dateStr = r.date.slice(0, 10);
+        if (r.datatype === "TMAX") {
+          tmaxByMonth[dateKey] = { date: dateStr, value: r.value };
+        } else if (r.datatype === "TMIN") {
+          tminByMonth[dateKey] = { date: dateStr, value: r.value };
         }
       });
 
-      // Sort by date and build final array
-      var sortedKeys = Object.keys(tempByMonth).sort();
-      var temps = sortedKeys.map(function(k) {
-        var entry = tempByMonth[k];
-        if (entry.type === "TAVG") usedTavg++;
-        else usedTmax++;
-        return { x: entry.x, y: entry.y };
+      // Calculate (TMAX+TMIN)/2 for months that have both
+      var allMonths = Object.keys(tmaxByMonth).filter(function(k) {
+        return tminByMonth[k];
+      }).sort();
+
+      var temps = allMonths.map(function(k) {
+        var avg = (tmaxByMonth[k].value + tminByMonth[k].value) / 2;
+        return { x: tmaxByMonth[k].date, y: avg };
       });
 
-      var sourceNote = "";
-      if (usedTmax === 0) {
-        sourceNote = "Using TAVG for all months.";
-      } else if (usedTavg === 0) {
-        sourceNote = "TAVG unavailable — using TMAX as fallback.";
-      } else {
-        sourceNote = "TAVG for " + usedTavg + " months, TMAX fallback for " + usedTmax + ".";
-      }
-
       setStatus(
-        temps.length + " monthly temperatures loaded. " + sourceNote +
-        " (" + apiCalls + " API calls)"
+        temps.length + " monthly temperatures loaded. Calculated as (TMAX+TMIN)/2. (" +
+        apiCalls + " API calls)"
       );
       hideProgress();
 
@@ -884,7 +873,7 @@
       data: {
         datasets: [
           {
-            label: "Avg Temperature (°C)",
+            label: "(TMAX+TMIN)/2",
             data: tempsWithGaps,
             borderColor: getComputedStyle(document.documentElement).getPropertyValue("--high").trim(),
             backgroundColor: "rgba(196, 93, 62, 0.08)",
