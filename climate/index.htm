@@ -325,7 +325,7 @@
   </div>
 
   <footer>
-    v1.4
+    v1.5
   </footer>
 
 </div>
@@ -532,65 +532,30 @@
         return;
       }
 
-      // Parse city name from station name
-      function parseCity(name) {
-        return name
-          .replace(/\s+\d[\d\.]*\s*(N|S|E|W|NE|NW|SE|SW|NNE|NNW|SSE|SSW|ENE|ESE|WNW|WSW)?\s*$/i, "")
-          .replace(/\s*,.*$/, "")
-          .replace(/\s+(AP|AIRPORT|ARPT|ASOS|AWOS|WSO|WFO|COOP|WBAN|AFB|AAF|NAS|MCAS|RGNL|MUNI|INTL|FAA).*$/i, "")
-          .replace(/\s+\d+\s*$/, "")
-          .trim()
-          .replace(/\b\w/g, function(c) { return c.toUpperCase(); })
-          .replace(/\b(Of|The|And|In|At|To|For)\b/g, function(w) { return w.toLowerCase(); });
-      }
-
-      // Group stations by city
-      var cityGroups = {};
-      allStations.forEach(function(s) {
-        var city = parseCity(s.name || "Unknown");
-        if (!city) city = s.name || "Unknown";
-        if (!cityGroups[city]) cityGroups[city] = [];
-        cityGroups[city].push(s);
+      // Exclude airport stations
+      allStations = allStations.filter(function(s) {
+        var name = (s.name || "").toUpperCase();
+        return !/\b(AP|AIRPORT|ARPT|ASOS|AWOS|AFB|AAF|NAS|MCAS|RGNL|MUNI|INTL|FAA|WSO|WFO)\b/.test(name);
       });
 
-      // Filter to top 3 cities by population (partial match)
-      var topList = (TOP_CITIES[currentFips] || []).map(function(c) { return c.toUpperCase(); });
-      var matchedCities = Object.keys(cityGroups).filter(function(city) {
-        var cu = city.toUpperCase();
-        return topList.some(function(top) {
-          return cu.indexOf(top) !== -1 || top.indexOf(cu) !== -1;
-        });
-      });
-
-      // Sort by population rank
-      matchedCities.sort(function(a, b) {
-        var au = a.toUpperCase(), bu = b.toUpperCase();
-        var aRank = topList.length, bRank = topList.length;
-        topList.forEach(function(top, i) {
-          if ((au.indexOf(top) !== -1 || top.indexOf(au) !== -1) && i < aRank) aRank = i;
-          if ((bu.indexOf(top) !== -1 || top.indexOf(bu) !== -1) && i < bRank) bRank = i;
-        });
-        if (aRank !== bRank) return aRank - bRank;
-        return a.localeCompare(b);
-      });
-
-      if (matchedCities.length === 0) {
-        setStatus("No qualifying stations found in the top cities for this state.", true);
+      if (allStations.length === 0) {
+        setStatus("No qualifying non-airport stations found in this state.", true);
         selStation.innerHTML = '<option value="">No stations found</option>';
         return;
       }
 
+      // Sort alphabetically by name
+      allStations.sort(function(a, b) {
+        return (a.name || "").localeCompare(b.name || "");
+      });
+
       // Populate station dropdown
-      var totalStations = 0;
       selStation.innerHTML = '<option value="">Select a station…</option>';
-      matchedCities.forEach(function(city) {
-        cityGroups[city].forEach(function(s) {
-          var opt = document.createElement("option");
-          opt.value = JSON.stringify(s);
-          opt.textContent = s.name;
-          selStation.appendChild(opt);
-          totalStations++;
-        });
+      allStations.forEach(function(s) {
+        var opt = document.createElement("option");
+        opt.value = JSON.stringify(s);
+        opt.textContent = s.name;
+        selStation.appendChild(opt);
       });
 
       selStation.disabled = false;
