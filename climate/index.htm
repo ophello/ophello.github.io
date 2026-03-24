@@ -594,7 +594,7 @@
       });
 
       selStation.disabled = false;
-      setStatus(totalStations + " stations loaded.");
+      setStatus("");
     } catch (err) {
       setStatus("Error loading stations: " + err.message, true);
       selStation.innerHTML = '<option value="">Error</option>';
@@ -615,14 +615,6 @@
     btnGen.disabled = true;
     selState.disabled = true;
     selStation.disabled = true;
-
-    document.getElementById("info-name").textContent = station.name;
-    document.getElementById("info-id").textContent = station.id;
-    document.getElementById("info-elev").textContent = station.elevation != null
-      ? "Elev. " + station.elevation + " m" : "";
-    document.getElementById("info-range").textContent = "Records: " + (station.mindate || "?") + " → " + (station.maxdate || "?");
-    elInfo.classList.add("visible");
-    elChart.classList.add("visible");
 
     try {
       setStatus("Fetching monthly temperature data…");
@@ -715,11 +707,17 @@
         return { x: tmaxByMonth[k].date, y: avg };
       });
 
-      setStatus(
-        temps.length + " monthly temperatures loaded. Calculated as (TMAX+TMIN)/2. (" +
-        apiCalls + " API calls)"
-      );
+      setStatus("");
       hideProgress();
+
+      // Update station info only after data is confirmed loaded
+      document.getElementById("info-name").textContent = station.name;
+      document.getElementById("info-id").textContent = station.id;
+      document.getElementById("info-elev").textContent = station.elevation != null
+        ? "Elev. " + station.elevation + " m" : "";
+      document.getElementById("info-range").textContent = "Records: " + (station.mindate || "?") + " → " + (station.maxdate || "?");
+      elInfo.classList.add("visible");
+      elChart.classList.add("visible");
 
       renderChart(temps, station.name);
 
@@ -911,6 +909,8 @@
         scales: {
           x: {
             type: "time",
+            min: "1970-01-01",
+            max: new Date().toISOString().slice(0, 10),
             time: {
               unit: "year",
               displayFormats: { year: "yyyy" },
