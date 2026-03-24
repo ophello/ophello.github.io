@@ -288,7 +288,7 @@
   <div class="controls">
     <div class="field field-state">
       <label for="sel-state">State</label>
-      <select id="sel-state"><option value="">Select a state…</option></select>
+      <select id="sel-state"><option value=""></option></select>
     </div>
     <div class="field">
       <label for="sel-station">Station</label>
@@ -413,7 +413,7 @@
   US_STATES.forEach(function(s) {
     var opt = document.createElement("option");
     opt.value = s[2];
-    opt.textContent = s[1] + " (" + s[0] + ")";
+    opt.textContent = s[1];
     selState.appendChild(opt);
   });
 
