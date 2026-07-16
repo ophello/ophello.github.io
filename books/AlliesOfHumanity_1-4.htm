@@ -68,6 +68,31 @@ document.addEventListener('DOMContentLoaded', function () {
   // H2 sub-section headers hide during a search — only H1 dividers stay put
   const sectionHeaders = Array.from(document.querySelectorAll('body > h2'));
  
+  // Map each H1 to the paragraphs that fall under it, so we can hide an H1
+  // whose section has zero matching paragraphs during a search.
+  const h1s = Array.from(document.querySelectorAll('body > h1'));
+  const h1ToParagraphs = new Map(h1s.map(h1 => [h1, []]));
+  let currentH1 = null;
+  Array.from(document.body.children).forEach(el => {
+    if (el.tagName === 'H1') {
+      currentH1 = el;
+    } else if (el.tagName === 'P' && currentH1) {
+      h1ToParagraphs.get(currentH1).push(el);
+    }
+  });
+ 
+  function updateH1Visibility(query) {
+    h1s.forEach(h1 => {
+      if (query === '') {
+        h1.style.display = '';
+        return;
+      }
+      const sectionParagraphs = h1ToParagraphs.get(h1) || [];
+      const hasVisible = sectionParagraphs.some(p => p.style.display !== 'none');
+      h1.style.display = hasVisible ? '' : 'none';
+    });
+  }
+ 
   paragraphs.forEach(p => {
     p.dataset.originalHtml = p.innerHTML;
     // visible by default; search will hide non-matches once you type something
@@ -79,6 +104,8 @@ document.addEventListener('DOMContentLoaded', function () {
  
   function runSearch() {
     const query = document.getElementById('paragraph-search').value.trim();
+    const statusEl = document.getElementById('paragraph-search-status');
+    let matchCount = 0;
  
     sectionHeaders.forEach(h => {
       h.style.display = query === '' ? '' : 'none';
@@ -99,6 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
       regex.lastIndex = 0; // reset before reuse below (global regexes carry state between calls)
  
       if (matches) {
+        matchCount++;
         p.innerHTML = original.replace(regex, `<span style="color:${HIGHLIGHT_COLOR};">$1</span>`);
         p.style.display = '';
       } else {
@@ -106,6 +134,10 @@ document.addEventListener('DOMContentLoaded', function () {
         p.style.display = 'none';
       }
     });
+ 
+    updateH1Visibility(query);
+ 
+    statusEl.textContent = query === '' ? '' : `${matchCount} matches found`;
   }
  
   document.getElementById('paragraph-search').addEventListener('input', runSearch);
@@ -115,7 +147,8 @@ document.addEventListener('DOMContentLoaded', function () {
  
 <body>
   <div id="paragraph-search-wrapper" style="margin-bottom: 20px;">
-  <input type="text" id="paragraph-search" placeholder="Filter text with search term" style="width: 100%; max-width: 400px; padding: 8px; font-size: 16px;" />
+  <input type="text" id="paragraph-search" placeholder="Filter text with search term" style="width: 100%; max-width: 400px; padding: 8px; font-size: 16px; margin-right: 10px;" />
+  <span id="paragraph-search-status" style="color: #fff; opacity: 0.3; font-size: 0.7em;"></span>
 </div>
   
 <hr>
