@@ -25,7 +25,7 @@
   </style>
 </head>
 <script>
-function boldWord(root, word) {
+function colorWord(root, word, color) {
   const regex = new RegExp(`(${word})`, 'gi');
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: node =>
@@ -40,18 +40,13 @@ function boldWord(root, word) {
 
   nodes.forEach(node => {
     const span = document.createElement('span');
-    span.innerHTML = node.nodeValue.replace(regex, match => {
-      const isPlural = /s$/i.test(match);
-      return isPlural
-        ? `<strong style="color:#9b4000;">${match}</strong>`
-        : `<strong>${match}</strong>`;
-    });
+    span.innerHTML = node.nodeValue.replace(regex, `<span style="color:${color};">$1</span>`);
     node.replaceWith(...span.childNodes);
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  boldWord(document.body, 'resources?');
+  colorWord(document.body, 'resources?', '#00ad53');
 });
 </script>
 <body>
