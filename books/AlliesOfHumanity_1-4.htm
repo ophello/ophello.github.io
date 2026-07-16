@@ -93,10 +93,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
  
-      const matches = p.textContent.toLowerCase().includes(query.toLowerCase());
+      // \b anchors the match to the start of a word, so "kill" won't match inside "skill"
+      const regex = new RegExp(`\\b(${escapeRegex(query)})`, 'gi');
+      const matches = regex.test(p.textContent);
+      regex.lastIndex = 0; // reset before reuse below (global regexes carry state between calls)
  
       if (matches) {
-        const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
         p.innerHTML = original.replace(regex, `<span style="color:${HIGHLIGHT_COLOR};">$1</span>`);
         p.style.display = '';
       } else {
@@ -107,9 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
  
   document.getElementById('paragraph-search-btn').addEventListener('click', runSearch);
-  document.getElementById('paragraph-search').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') runSearch();
-  });
+  document.getElementById('paragraph-search').addEventListener('input', runSearch);
 });
 </script>
 </head>
