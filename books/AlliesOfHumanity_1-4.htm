@@ -18,13 +18,12 @@ hr {
   background-color: #ccc;
 }
 </style>
-
-  <script>
+<script>
 document.addEventListener('DOMContentLoaded', function () {
   const HIGHLIGHT_COLOR = '#00ad53';
  
   // Step 1: auto-wrap raw text (separated by <br>) into real <p> elements.
-  // Headings and <hr> are left completely untouched.
+  // Headings, <hr>, and the search UI are left completely untouched.
   function wrapParagraphs(container) {
     const nodes = Array.from(container.childNodes);
     let buffer = [];
@@ -45,7 +44,11 @@ document.addEventListener('DOMContentLoaded', function () {
  
     nodes.forEach(node => {
       const tag = node.nodeName;
-      if (tag === 'BR') {
+      const isSearchUI = node.nodeType === 1 && node.id === 'paragraph-search-wrapper';
+ 
+      if (isSearchUI) {
+        flush(node); // never touch the search box/button
+      } else if (tag === 'BR') {
         flush(node);
         node.remove();
       } else if (skipTags.includes(tag)) {
@@ -104,9 +107,8 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 </head>
-  
+ 
 <body>
-
   <div id="paragraph-search-wrapper" style="margin-bottom: 20px;">
   <input type="text" id="paragraph-search" placeholder="Search paragraphs..." style="width: 100%; max-width: 400px; padding: 8px; font-size: 16px;" />
   <button id="paragraph-search-btn" style="padding: 8px 16px; font-size: 16px;">Search</button>
