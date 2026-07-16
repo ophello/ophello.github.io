@@ -43,7 +43,7 @@ function boldWord(root, word) {
     span.innerHTML = node.nodeValue.replace(regex, match => {
       const isPlural = /s$/i.test(match);
       return isPlural
-        ? `<strong style="color:#ff6900;">${match}</strong>`
+        ? `<strong style="color:#9b4000;">${match}</strong>`
         : `<strong>${match}</strong>`;
     });
     node.replaceWith(...span.childNodes);
