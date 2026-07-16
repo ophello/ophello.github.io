@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
  
   paragraphs.forEach(p => {
     p.dataset.originalHtml = p.innerHTML;
-    p.style.display = 'none'; // hidden until a search is run
+    // visible by default; search will hide non-matches once you type something
   });
  
   function escapeRegex(str) {
