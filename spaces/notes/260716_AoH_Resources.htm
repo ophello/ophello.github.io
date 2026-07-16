@@ -40,7 +40,12 @@ function boldWord(root, word) {
 
   nodes.forEach(node => {
     const span = document.createElement('span');
-    span.innerHTML = node.nodeValue.replace(regex, '<strong>$1</strong>');
+    span.innerHTML = node.nodeValue.replace(regex, match => {
+      const isPlural = /s$/i.test(match);
+      return isPlural
+        ? `<strong style="color:#ff6900;">${match}</strong>`
+        : `<strong>${match}</strong>`;
+    });
     node.replaceWith(...span.childNodes);
   });
 }
