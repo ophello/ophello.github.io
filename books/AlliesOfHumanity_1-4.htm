@@ -65,31 +65,36 @@ document.addEventListener('DOMContentLoaded', function () {
  
   // Step 2: wire up search over the newly created <p> elements
   const paragraphs = Array.from(document.querySelectorAll('body > p'));
-  // H2 sub-section headers hide during a search — only H1 dividers stay put
-  const sectionHeaders = Array.from(document.querySelectorAll('body > h2'));
- 
-  // Map each H1 to the paragraphs that fall under it, so we can hide an H1
-  // whose section has zero matching paragraphs during a search.
   const h1s = Array.from(document.querySelectorAll('body > h1'));
+  const h2s = Array.from(document.querySelectorAll('body > h2'));
+ 
+  // Map each H1/H2 to the paragraphs that fall under it, so we can hide a
+  // header whose section has zero matching paragraphs during a search.
   const h1ToParagraphs = new Map(h1s.map(h1 => [h1, []]));
+  const h2ToParagraphs = new Map(h2s.map(h2 => [h2, []]));
   let currentH1 = null;
+  let currentH2 = null;
   Array.from(document.body.children).forEach(el => {
     if (el.tagName === 'H1') {
       currentH1 = el;
-    } else if (el.tagName === 'P' && currentH1) {
-      h1ToParagraphs.get(currentH1).push(el);
+      currentH2 = null; // a new H1 section resets which H2 we're under
+    } else if (el.tagName === 'H2') {
+      currentH2 = el;
+    } else if (el.tagName === 'P') {
+      if (currentH1) h1ToParagraphs.get(currentH1).push(el);
+      if (currentH2) h2ToParagraphs.get(currentH2).push(el);
     }
   });
  
-  function updateH1Visibility(query) {
-    h1s.forEach(h1 => {
+  function updateHeaderVisibility(headers, headerToParagraphs, query) {
+    headers.forEach(header => {
       if (query === '') {
-        h1.style.display = '';
+        header.style.display = '';
         return;
       }
-      const sectionParagraphs = h1ToParagraphs.get(h1) || [];
+      const sectionParagraphs = headerToParagraphs.get(header) || [];
       const hasVisible = sectionParagraphs.some(p => p.style.display !== 'none');
-      h1.style.display = hasVisible ? '' : 'none';
+      header.style.display = hasVisible ? '' : 'none';
     });
   }
  
@@ -106,10 +111,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const query = document.getElementById('paragraph-search').value.trim();
     const statusEl = document.getElementById('paragraph-search-status');
     let matchCount = 0;
- 
-    sectionHeaders.forEach(h => {
-      h.style.display = query === '' ? '' : 'none';
-    });
  
     paragraphs.forEach(p => {
       const original = p.dataset.originalHtml;
@@ -135,7 +136,8 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
  
-    updateH1Visibility(query);
+    updateHeaderVisibility(h1s, h1ToParagraphs, query);
+    updateHeaderVisibility(h2s, h2ToParagraphs, query);
  
     statusEl.textContent = query === '' ? '' : `${matchCount} matches found`;
   }
