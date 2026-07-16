@@ -65,6 +65,8 @@ document.addEventListener('DOMContentLoaded', function () {
  
   // Step 2: wire up search over the newly created <p> elements
   const paragraphs = Array.from(document.querySelectorAll('body > p'));
+  // H2 sub-section headers hide during a search — only H1 dividers stay put
+  const sectionHeaders = Array.from(document.querySelectorAll('body > h2'));
  
   paragraphs.forEach(p => {
     p.dataset.originalHtml = p.innerHTML;
@@ -78,12 +80,16 @@ document.addEventListener('DOMContentLoaded', function () {
   function runSearch() {
     const query = document.getElementById('paragraph-search').value.trim();
  
+    sectionHeaders.forEach(h => {
+      h.style.display = query === '' ? '' : 'none';
+    });
+ 
     paragraphs.forEach(p => {
       const original = p.dataset.originalHtml;
  
       if (query === '') {
         p.innerHTML = original;
-        p.style.display = 'none';
+        p.style.display = '';
         return;
       }
  
@@ -113,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
   <input type="text" id="paragraph-search" placeholder="Search paragraphs..." style="width: 100%; max-width: 400px; padding: 8px; font-size: 16px;" />
   <button id="paragraph-search-btn" style="padding: 8px 16px; font-size: 16px;">Search</button>
 </div>
+
   
 <hr>
 <h1>ALLIES OF HUMANITY – BOOK 1</h1>
