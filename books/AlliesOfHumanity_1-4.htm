@@ -11,15 +11,107 @@ body {
 }
 h1 { font-size: 18px; }
 h2 { font-size: 16px; font-weight:bold;}
+p { margin: 0 0 22px 0; }
 hr {
   height: 1px;
   border: 0;
   background-color: #ccc;
 }
 </style>
+
+  <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const HIGHLIGHT_COLOR = '#00ad53';
+ 
+  // Step 1: auto-wrap raw text (separated by <br>) into real <p> elements.
+  // Headings and <hr> are left completely untouched.
+  function wrapParagraphs(container) {
+    const nodes = Array.from(container.childNodes);
+    let buffer = [];
+ 
+    function flush(referenceNode) {
+      const hasContent = buffer.some(n => (n.textContent || '').trim().length > 0);
+      if (hasContent) {
+        const p = document.createElement('p');
+        buffer.forEach(n => p.appendChild(n));
+        container.insertBefore(p, referenceNode);
+      } else {
+        buffer.forEach(n => n.remove());
+      }
+      buffer = [];
+    }
+ 
+    const skipTags = ['HR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+ 
+    nodes.forEach(node => {
+      const tag = node.nodeName;
+      if (tag === 'BR') {
+        flush(node);
+        node.remove();
+      } else if (skipTags.includes(tag)) {
+        flush(node); // leave the heading/hr itself in place, untouched
+      } else {
+        buffer.push(node);
+      }
+    });
+ 
+    flush(null); // flush whatever's left at the end
+  }
+ 
+  wrapParagraphs(document.body);
+ 
+  // Step 2: wire up search over the newly created <p> elements
+  const paragraphs = Array.from(document.querySelectorAll('body > p'));
+ 
+  paragraphs.forEach(p => {
+    p.dataset.originalHtml = p.innerHTML;
+    p.style.display = 'none'; // hidden until a search is run
+  });
+ 
+  function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+ 
+  function runSearch() {
+    const query = document.getElementById('paragraph-search').value.trim();
+ 
+    paragraphs.forEach(p => {
+      const original = p.dataset.originalHtml;
+ 
+      if (query === '') {
+        p.innerHTML = original;
+        p.style.display = 'none';
+        return;
+      }
+ 
+      const matches = p.textContent.toLowerCase().includes(query.toLowerCase());
+ 
+      if (matches) {
+        const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+        p.innerHTML = original.replace(regex, `<span style="color:${HIGHLIGHT_COLOR};">$1</span>`);
+        p.style.display = '';
+      } else {
+        p.innerHTML = original;
+        p.style.display = 'none';
+      }
+    });
+  }
+ 
+  document.getElementById('paragraph-search-btn').addEventListener('click', runSearch);
+  document.getElementById('paragraph-search').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') runSearch();
+  });
+});
+</script>
 </head>
   
 <body>
+
+  <div id="paragraph-search-wrapper" style="margin-bottom: 20px;">
+  <input type="text" id="paragraph-search" placeholder="Search paragraphs..." style="width: 100%; max-width: 400px; padding: 8px; font-size: 16px;" />
+  <button id="paragraph-search-btn" style="padding: 8px 16px; font-size: 16px;">Search</button>
+</div>
+  
 <hr>
 <h1>ALLIES OF HUMANITY – BOOK 1</h1>
 <hr><br>
