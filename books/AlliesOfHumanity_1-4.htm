@@ -68,6 +68,16 @@ document.addEventListener('DOMContentLoaded', function () {
   const h1s = Array.from(document.querySelectorAll('body > h1'));
   const h2s = Array.from(document.querySelectorAll('body > h2'));
  
+  // Each H1 is flanked by an <hr> immediately before and after it —
+  // tie those to the H1 so they hide together when its section has no matches.
+  const h1ToHrs = new Map(h1s.map(h1 => [h1, []]));
+  h1s.forEach(h1 => {
+    const prev = h1.previousElementSibling;
+    const next = h1.nextElementSibling;
+    if (prev && prev.tagName === 'HR') h1ToHrs.get(h1).push(prev);
+    if (next && next.tagName === 'HR') h1ToHrs.get(h1).push(next);
+  });
+ 
   // Map each H1/H2 to the paragraphs that fall under it, so we can hide a
   // header whose section has zero matching paragraphs during a search.
   const h1ToParagraphs = new Map(h1s.map(h1 => [h1, []]));
@@ -139,6 +149,13 @@ document.addEventListener('DOMContentLoaded', function () {
     updateHeaderVisibility(h1s, h1ToParagraphs, query);
     updateHeaderVisibility(h2s, h2ToParagraphs, query);
  
+    // Each H1's flanking <hr> tags follow that H1's own visibility
+    h1s.forEach(h1 => {
+      h1ToHrs.get(h1).forEach(hr => {
+        hr.style.display = h1.style.display;
+      });
+    });
+ 
     statusEl.textContent = query === '' ? '' : `${matchCount} matches found`;
   }
  
@@ -152,6 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
   <input type="text" id="paragraph-search" placeholder="Filter text with search term" style="width: 100%; max-width: 400px; padding: 8px; font-size: 16px; margin-right: 10px;" />
   <span id="paragraph-search-status" style="color: #fff; opacity: 0.3; font-size: 0.7em;"></span>
 </div>
+ 
   
 <hr>
 <h1>ALLIES OF HUMANITY – BOOK 1</h1>
